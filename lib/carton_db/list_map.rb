@@ -1,6 +1,6 @@
 require 'fileutils'
 require 'digest'
-require 'cgi'
+require 'json'
 
 module CartonDb
 
@@ -24,7 +24,7 @@ module CartonDb
       if stat.nil? or stat.zero?
         concat_to key, array_val
       else
-        esc_key = CGI.escape(key)
+        esc_key = JSON.dump(key)
         new_file = "#{file}.new"
         File.open new_file, 'w' do |nf_io|
           File.open file do |io|
@@ -36,10 +36,10 @@ module CartonDb
           element_count = 0
           array_val.each do |element|
             element_count += 1
-            nf_io.puts "#{CGI.escape(key)}\t#{CGI.escape(element)}"
+            nf_io.puts "#{JSON.dump(key)}\t#{JSON.dump(element)}"
           end
           if element_count.zero?
-            nf_io.puts CGI.escape(key)
+            nf_io.puts JSON.dump(key)
           end
         end
         File.unlink file
@@ -51,7 +51,7 @@ module CartonDb
       key = key.to_s
       file = file_path_for(key)
       return nil unless File.file?(file)
-      esc_key = CGI.escape(key)
+      esc_key = JSON.dump(key)
       ary = nil
       File.open file do |io|
         io.each_line do |line|
@@ -60,7 +60,7 @@ module CartonDb
           next ary unless l_esc_key == esc_key
           ary ||= []
           next unless l_esc_element
-          ary << CGI.unescape(l_esc_element)
+          ary << JSON.load(l_esc_element)
         end
       end
       ary
@@ -73,7 +73,7 @@ module CartonDb
       if stat.nil? or stat.zero?
         concat_to key, array_val
       else
-        esc_key = CGI.escape(key)
+        esc_key = JSON.dump(key)
         new_file = "#{file}.new"
         File.open new_file, 'w' do |nf_io|
           File.open file do |io|
@@ -93,7 +93,7 @@ module CartonDb
       file = file_path_for(key)
       FileUtils.mkpath File.dirname(file)
       File.open file, 'a' do |io|
-        io.puts "#{CGI.escape(key)}\t#{CGI.escape(element)}"
+        io.puts "#{JSON.dump(key)}\t#{JSON.dump(element)}"
       end
     end
 
@@ -105,10 +105,10 @@ module CartonDb
         element_count = 0
         elements.each do |element|
           element_count += 1
-          io.puts "#{CGI.escape(key)}\t#{CGI.escape(element)}"
+          io.puts "#{JSON.dump(key)}\t#{JSON.dump(element)}"
         end
         if element_count.zero?
-          io.puts CGI.escape(key)
+          io.puts JSON.dump(key)
         end
       end
     end
