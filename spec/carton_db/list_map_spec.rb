@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 require "spec_helper"
 require 'fileutils'
 
@@ -79,7 +80,15 @@ RSpec.describe CartonDb::ListMap do
     expect( subject ).not_to be_empty
   end
 
-  it "manages many distinct entries" do
+  it "supports all kinds of characters in keys and values" do
+    key = "\\\u0000\u0005\n\u007F'\"⋍"
+    value = ["\\", "\u0000", "\u007F", "\\", "'", '"', '\n\t⋍']
+
+    subject[key] = value
+    expect( subject[key] ).to eq( value )
+  end
+
+  it "manages many distinct entries", slow: true do
     # The current implementation has up to 128 directories, each
     # containing up to 128 files.  Creating more than 16,384
     # entries ensures that some of the files must store data for
