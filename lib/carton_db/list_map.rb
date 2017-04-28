@@ -25,6 +25,23 @@ module CartonDb
       true
     end
 
+    def count
+      key_count = 0
+      file_key_set = Set.new
+      each_data_file do |file, stat|
+        next if stat.zero?
+        file_key_set.clear
+        open_read file do |io|
+          io.each_line do |line|
+            esc_key, _ = line.strip.split("\t", 2)
+            file_key_set << esc_key
+          end
+        end
+        key_count += file_key_set.length
+      end
+      key_count
+    end
+
     def []=(key, array_val)
       key = key.to_s
       file = file_path_for(key)
