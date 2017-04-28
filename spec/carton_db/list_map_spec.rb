@@ -126,6 +126,23 @@ RSpec.describe CartonDb::ListMap do
     expect( subject.count ).to eq( 3 )
   end
 
+  it "is empty and has a count of 0 after being cleared when already empty" do
+    subject.clear
+
+    expect( subject ).to be_empty
+    expect( subject.count ).to be_zero
+  end
+
+  it "is empty and has a count of 0 after being cleared when it has entries" do
+    subject['key a'] = ['entry a1']
+    subject['key b'] = ['entry b1', 'entry b2']
+
+    subject.clear
+
+    expect( subject ).to be_empty
+    expect( subject.count ).to be_zero
+  end
+
   it "supports all kinds of characters in key and array element strings" do
     key = "\\\u0000\u0005\n\t\u007F'\"⋍"
     value = ["\\", "\u0000", "\u007F", "\\", "'", '"', '\n\t⋍']

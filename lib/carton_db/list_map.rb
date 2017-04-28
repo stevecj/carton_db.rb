@@ -7,6 +7,7 @@ module CartonDb
 
   class ListMap
     extend Forwardable
+    include Enumerable
 
     FILE_ENCODING_OPTS = {
       internal_encoding: Encoding::UTF_8,
@@ -64,6 +65,11 @@ module CartonDb
         File.unlink file
         File.rename new_file, file
       end
+    end
+
+    def clear
+      subdirs = to_enum(:each_subdir).to_a
+      FileUtils.rm_rf subdirs
     end
 
     def each
