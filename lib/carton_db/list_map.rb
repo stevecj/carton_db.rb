@@ -31,11 +31,9 @@ module CartonDb
       each_data_file do |file, stat|
         next if stat.zero?
         file_key_set.clear
-        open_read file do |io|
-          io.each_line do |line|
-            esc_key, _ = line.strip.split("\t", 2)
-            file_key_set << esc_key
-          end
+        each_file_line file do |line|
+          esc_key, _ = line.strip.split("\t", 2)
+          file_key_set << esc_key
         end
         key_count += file_key_set.length
       end
@@ -52,11 +50,9 @@ module CartonDb
         esc_key = (key)
         new_file = "#{file}.new"
         open_overwrite new_file do |nf_io|
-          open_read file do |io|
-            io.each_line do |line|
-              l_esc_key, l_esc_element = line.strip.split("\t", 2)
-              nf_io.print line unless l_esc_key == esc_key
-            end
+          each_file_line file do |line|
+            l_esc_key, l_esc_element = line.strip.split("\t", 2)
+            nf_io.print line unless l_esc_key == esc_key
           end
           element_count = 0
           array_val.each do |element|
@@ -78,15 +74,13 @@ module CartonDb
       return nil unless File.file?(file)
       esc_key = escape(key)
       ary = nil
-      open_read file do |io|
-        io.each_line do |line|
-          line.strip!
-          l_esc_key, l_esc_element = line.split("\t", 2)
-          next ary unless l_esc_key == esc_key
-          ary ||= []
-          next unless l_esc_element
-          ary << unescape(l_esc_element)
-        end
+      each_file_line file do |line|
+        line.strip!
+        l_esc_key, l_esc_element = line.split("\t", 2)
+        next ary unless l_esc_key == esc_key
+        ary ||= []
+        next unless l_esc_element
+        ary << unescape(l_esc_element)
       end
       ary
     end
@@ -101,11 +95,9 @@ module CartonDb
         esc_key = escape(key)
         new_file = "#{file}.new"
         open_overwrite new_file do |nf_io|
-          open_read file do |io|
-            io.each_line do |line|
-              l_esc_key, l_esc_element = line.strip.split("\t", 2)
-              nf_io.print line unless l_esc_key == esc_key
-            end
+          each_file_line file do |line|
+            l_esc_key, l_esc_element = line.strip.split("\t", 2)
+            nf_io.print line unless l_esc_key == esc_key
           end
         end
         File.unlink file
@@ -151,6 +143,14 @@ module CartonDb
       subdir = "#{hex_hashcode[0..1].to_i(16) % 128}"
       filename = "#{hex_hashcode[2..3].to_i(16) % 128}.txt"
       File.join(name, subdir, filename)
+    end
+
+    def each_file_line(file)
+      open_read file do |io|
+        io.each_line do |line|
+          yield line
+        end
+      end
     end
 
     def open_read(file)
