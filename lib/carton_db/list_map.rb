@@ -27,15 +27,14 @@ module CartonDb
 
     def count
       key_count = 0
-      file_key_set = Set.new
+      file_esc_key_set = Set.new
       each_data_file do |file, stat|
         next if stat.zero?
-        file_key_set.clear
-        each_file_line file do |line|
-          esc_key, _ = line.strip.split("\t", 2)
-          file_key_set << esc_key
+        file_esc_key_set.clear
+        each_file_esc_pair file do |esc_key, _|
+          file_esc_key_set << esc_key
         end
-        key_count += file_key_set.length
+        key_count += file_esc_key_set.length
       end
       key_count
     end
@@ -50,8 +49,7 @@ module CartonDb
         esc_key = (key)
         new_file = "#{file}.new"
         open_overwrite new_file do |nf_io|
-          each_file_line file do |line|
-            l_esc_key, l_esc_element = line.strip.split("\t", 2)
+          each_file_esc_pair file do |l_esc_key, l_esc_element, line|
             nf_io.print line unless l_esc_key == esc_key
           end
           element_count = 0
@@ -74,9 +72,8 @@ module CartonDb
       return nil unless File.file?(file)
       esc_key = escape(key)
       ary = nil
-      each_file_line file do |line|
+      each_file_esc_pair file do |l_esc_key, l_esc_element, line|
         line.strip!
-        l_esc_key, l_esc_element = line.split("\t", 2)
         next ary unless l_esc_key == esc_key
         ary ||= []
         next unless l_esc_element
@@ -95,8 +92,7 @@ module CartonDb
         esc_key = escape(key)
         new_file = "#{file}.new"
         open_overwrite new_file do |nf_io|
-          each_file_line file do |line|
-            l_esc_key, l_esc_element = line.strip.split("\t", 2)
+          each_file_esc_pair file do |l_esc_key, l_esc_element|
             nf_io.print line unless l_esc_key == esc_key
           end
         end
@@ -143,6 +139,13 @@ module CartonDb
       subdir = "#{hex_hashcode[0..1].to_i(16) % 128}"
       filename = "#{hex_hashcode[2..3].to_i(16) % 128}.txt"
       File.join(name, subdir, filename)
+    end
+
+    def each_file_esc_pair(file)
+      each_file_line file do |line|
+        esc_key, esc_element = line.strip.split("\t", 2)
+        yield esc_key, esc_element, line
+      end
     end
 
     def each_file_line(file)
