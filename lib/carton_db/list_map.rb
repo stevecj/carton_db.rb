@@ -5,6 +5,11 @@ require 'digest'
 
 module CartonDb
 
+  # A map with string keys lists of strings as contents.
+  #
+  # This is suitable for storing a total number of elements as
+  # large as the low millions, with each entry containing a
+  # number of elements in the hundreds or low thousands.
   class ListMap
     extend Forwardable
     include Enumerable
@@ -14,38 +19,33 @@ module CartonDb
       external_encoding: Encoding::UTF_8
     }.freeze
 
+    # Initializes an instance that interacts with the database
+    # identified by the given name, which is the full path to a
+    # directory in the filesystem.
+    #
+    # The directory for the database will be created if it does
+    # not already exist.
+    #
+    # @param name [String] The full path of the directory in the
+    #   filesystem in which the data is stored or will be stored.
     def initialize(name)
       self.name = name
-      FileUtils.mkpath name
+      FileUtils.mkdir name unless File.directory?(name)
     end
 
-    def empty?
-      each_data_file do |file, stat|
-        return false unless stat.zero?
-      end
-      true
-    end
-
-    def count
-      key_count = 0
-      file_esc_key_set = Set.new
-      each_data_file do |file, stat|
-        next if stat.zero?
-        file_esc_key_set.clear
-        each_file_esc_pair file do |esc_key, _|
-          file_esc_key_set << esc_key
-        end
-        key_count += file_esc_key_set.length
-      end
-      key_count
-    end
-
-    def []=(key, array_val)
+    # Creates a new entry or replaces the contents of the
+    # existing entry identified by the given key.
+    #
+    # @param key [String] The key identifying the entry.
+    # @param content [Array<String>] An array or other
+    #   enumerable collection of 0 or more list element string
+    #   values to be stored.
+    def []=(key, content)
       key = key.to_s
       file = file_path_for(key)
       stat = File.stat(file) if File.file?(file)
       if stat.nil? or stat.zero?
-        concat_to key, array_val
+        concat_to key, content
       else
         esc_key = (key)
         new_file = "#{file}.new"
@@ -54,7 +54,7 @@ module CartonDb
             nf_io.print line unless l_esc_key == esc_key
           end
           element_count = 0
-          array_val.each do |element|
+          content.each do |element|
             element_count += 1
             nf_io.puts "#{escape(key)}\t#{escape(element)}"
           end
@@ -67,27 +67,12 @@ module CartonDb
       end
     end
 
-    def clear
-      subdirs = to_enum(:each_subdir).to_a
-      FileUtils.rm_rf subdirs
-    end
-
-    def each
-      esc_key_arrays_slice = {}
-      each_data_file do |file, stat|
-        next if stat.zero?
-        esc_key_arrays_slice.clear
-        each_file_esc_pair file do |esc_key, esc_element|
-          array = esc_key_arrays_slice[esc_key] ||= []
-          array << unescape(esc_element) if esc_element
-        end
-        esc_key_arrays_slice.each do |esc_key, array|
-          key = unescape(esc_key)
-          yield key, array
-        end
-      end
-    end
-
+    # Returns the content of the entry identified by the given
+    # key or nil if no such entry exists.
+    #
+    # @param key [String] The key identifying the entry.
+    # @return [Array<String>] if a matching entry exists.
+    # @return [nil] if no matching entry exists.
     def [](key)
       key = key.to_s
       file = file_path_for(key)
@@ -104,25 +89,89 @@ module CartonDb
       ary
     end
 
+    # Returns true if the map has no entries.
+    def empty?
+      each_data_file do |file, stat|
+        return false unless stat.zero?
+      end
+      true
+    end
+
+    # Returns the number of entries in the map. This operation
+    # scans the entire database to count the keys, so it can be
+    # be a slow operation if the database is large.
+    def count
+      key_count = 0
+      file_esc_key_set = Set.new
+      each_data_file do |file, stat|
+        next if stat.zero?
+        file_esc_key_set.clear
+        each_file_esc_pair file do |esc_key, _|
+          file_esc_key_set << esc_key
+        end
+        key_count += file_esc_key_set.length
+      end
+      key_count
+    end
+
+    # Removes all entries from the database, leaving it empty.
+    def clear
+      subdirs = to_enum(:each_subdir).to_a
+      FileUtils.rm_rf subdirs
+    end
+
+    # Yields each entry in the database as a key/array pair.
+    #
+    # @yieldparam key [String] The key of the entry.
+    # @yeildparam array [Array<String>] The elements of the list
+    #   entry's content.
+    def each
+      esc_key_arrays_slice = {}
+      each_data_file do |file, stat|
+        next if stat.zero?
+        esc_key_arrays_slice.clear
+        each_file_esc_pair file do |esc_key, esc_element|
+          array = esc_key_arrays_slice[esc_key] ||= []
+          array << unescape(esc_element) if esc_element
+        end
+        esc_key_arrays_slice.each do |esc_key, array|
+          key = unescape(esc_key)
+          yield key, array
+        end
+      end
+    end
+
+    # Removes an entry from the database. Has no effect if the
+    # entry already does not exist.
+    #
+    # @param key [String] The key identifying the entry to be
+    #   deleted.
     def delete(key)
       key = key.to_s
       file = file_path_for(key)
       stat = File.stat(file) if File.file?(file)
-      if stat.nil? or stat.zero?
-        concat_to key, array_val
-      else
-        esc_key = escape(key)
-        new_file = "#{file}.new"
-        open_overwrite new_file do |nf_io|
-          each_file_esc_pair file do |l_esc_key, l_esc_element|
-            nf_io.print line unless l_esc_key == esc_key
-          end
+      return if stat.nil? or stat.zero?
+
+      esc_key = escape(key)
+      new_file = "#{file}.new"
+      open_overwrite new_file do |io|
+        each_file_esc_pair file do |l_esc_key, l_esc_element|
+          io << line unless l_esc_key == esc_key
         end
-        File.unlink file
-        File.rename new_file, file
       end
+
+      File.unlink file
+      File.rename new_file, file
     end
 
+    # Appends an element string to the content of an entry.
+    # If the entry does not already exist, then one is
+    # created with a list containing the given element as its
+    # content.
+    #
+    # @param key [String] The key identifying the entry.
+    # @param element [String] The element to be appended to the
+    #   content of the entry.
     def append_to(key, element)
       key = key.to_s
       file = file_path_for(key)
@@ -132,6 +181,13 @@ module CartonDb
       end
     end
 
+    # Appends any number of element strings to the content of an
+    # entry. If the entry does not already exist, then one is
+    # created with the given list as its content.
+    #
+    # @param key [String] The key identifying the entry.
+    # @param elements [Array<String>] An array or other
+    #   enumerable collection of elements to append.
     def concat_to(key, elements)
       key = key.to_s
       file = file_path_for(key)
