@@ -3,6 +3,7 @@ require "spec_helper"
 require 'fileutils'
 
 RSpec.describe CartonDb::ListMap do
+
   before do
     destroy_workspace
     ensure_workspace_exists
@@ -79,36 +80,7 @@ RSpec.describe CartonDb::ListMap do
     expect( subject['the key'] ).to eq( ['element a', 'element b'] )
   end
 
-  it "is initially empty" do
-    expect( subject ).to be_empty
-  end
-
-  it "is not empty after an array entry has been created" do
-    subject.append_to('the key', 'first element')
-    expect( subject ).not_to be_empty
-  end
-
-  it "initially has a count of 0" do
-    expect( subject.count ).to be_zero
-  end
-
-  it "has its number of key/array-value entries as count when entries exist" do
-    subject['a'] = %w(a)
-    subject['b'] = %w(a b)
-    subject['c'] = %w(a b c)
-
-    expect( subject.count ).to eq( 3 )
-  end
-
-  it "supports all kinds of characters in keys and values" do
-    key = "\\\u0000\u0005\n\t\u007F'\"⋍"
-    value = ["\\", "\u0000", "\u007F", "\\", "'", '"', '\n\t⋍']
-
-    subject[key] = value
-    expect( subject[key] ).to eq( value )
-  end
-
-  it "manages many distinct entries", slow: true do
+  it "can contain many distinct entries", slow: true do
     begin
       # The current implementation has up to 128 directories, each
       # containing up to 128 files.  Creating more than 16,384
@@ -132,4 +104,48 @@ RSpec.describe CartonDb::ListMap do
       destroy_workspace
     end
   end
+
+  it "is initially empty" do
+    expect( subject ).to be_empty
+  end
+
+  it "is not empty after an entry has been created" do
+    subject.append_to('the key', 'first element')
+    expect( subject ).not_to be_empty
+  end
+
+  it "initially has a count of 0" do
+    expect( subject.count ).to be_zero
+  end
+
+  it "has its number of key/array entries as its count when entries exist" do
+    subject['a'] = %w(a)
+    subject['b'] = %w(a b)
+    subject['c'] = %w(a b c)
+
+    expect( subject.count ).to eq( 3 )
+  end
+
+  it "supports all kinds of characters in key and array element strings" do
+    key = "\\\u0000\u0005\n\t\u007F'\"⋍"
+    value = ["\\", "\u0000", "\u007F", "\\", "'", '"', '\n\t⋍']
+
+    subject[key] = value
+    expect( subject[key] ).to eq( value )
+  end
+
+  it "enumerates its key/array entries" do
+    subject['key a'] = ['entry a1']
+    subject['key b'] = ['entry b1', 'entry b2']
+    subject['key c'] = []
+
+    entries = subject.to_enum(:each).to_a
+
+    expect( entries ).to contain_exactly(
+      [ 'key a', ['entry a1'] ],
+      [ 'key b', ['entry b1', 'entry b2'] ],
+      [ 'key c', [] ],
+    )
+  end
+
 end

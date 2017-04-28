@@ -66,6 +66,22 @@ module CartonDb
       end
     end
 
+    def each
+      esc_key_arrays_slice = {}
+      each_data_file do |file, stat|
+        next if stat.zero?
+        esc_key_arrays_slice.clear
+        each_file_esc_pair file do |esc_key, esc_element|
+          array = esc_key_arrays_slice[esc_key] ||= []
+          array << unescape(esc_element) if esc_element
+        end
+        esc_key_arrays_slice.each do |esc_key, array|
+          key = unescape(esc_key)
+          yield key, array
+        end
+      end
+    end
+
     def [](key)
       key = key.to_s
       file = file_path_for(key)
