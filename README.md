@@ -15,19 +15,18 @@ purpose for it that the author has not thought of.
 
 This gem is a formalization of code that was written to solve the
 specific problem of how to build a map of arrays that is too big
-for Ruby to effectively handle in RAM on Heroku, which does not
-have many convenient alternatives.  A relational database would
-have worked but would have been weird since the app had no other
-use for a database server, and SQLite is explicitly not supported.
-Ruby's `DBM` and `SDMB` each seemed like a workable solution, but
-in practice, both turned out to be flakey, unpredicatble, and
-basically unusable.
+for Ruby to effectively handle in RAM on Heroku which does not
+have many convenient options for that.  A relational database
+would have worked but would have been weird since the app had no
+other use for a database server, and SQLite is explicitly not
+supported. Ruby's `DBM` and `SDMB` each seemed like a workable
+solution, but in practice, both turned out to be flakey,
+unpredicatble, and not up to the task.
 
-Although the solution was developed for the Heroku case in which
-there was no guarantee that data stored on disk would be
-be retained between processes, it is a perfectly good solution
-for persistent data when run on a system that does retain disk
-storage over time.
+Although this solution was developed to store transient data for
+use within a single process and then discarded, it is a perfectly
+viable solution for long term data persistence on a system that
+preserves filesystem data.
 
 ## Installation
 
