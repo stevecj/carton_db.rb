@@ -26,6 +26,8 @@ module CartonDb
     # The directory for the database will be created if it does
     # not already exist.
     #
+    # This is a very fast operation.
+    #
     # @param name [String] The full path of the directory in the
     #   filesystem in which the data is stored or will be stored.
     def initialize(name)
@@ -35,6 +37,10 @@ module CartonDb
 
     # Creates a new entry or replaces the contents of the
     # existing entry identified by the given key.
+    #
+    # The is a fairly fast operation, but can be somewhat
+    # slower in a large database. Note that appending and
+    # concatenating may be faster.
     #
     # @param key [String] The key identifying the entry.
     # @param content [Array<String>] An array or other
@@ -70,6 +76,9 @@ module CartonDb
     # Returns the content of the entry identified by the given
     # key or nil if no such entry exists.
     #
+    # This operation is fast, but may be slower for a larger
+    # database.
+    #
     # @param key [String] The key identifying the entry.
     # @return [Array<String>] if a matching entry exists.
     # @return [nil] if no matching entry exists.
@@ -90,6 +99,10 @@ module CartonDb
     end
 
     # Returns true if the map has no entries.
+    #
+    # This is a fairly fast operation.
+    #
+    # @return [Boolean]
     def empty?
       each_data_file do |file, stat|
         return false unless stat.zero?
@@ -97,9 +110,12 @@ module CartonDb
       true
     end
 
-    # Returns the number of entries in the map. This operation
-    # scans the entire database to count the keys, so it can be
-    # be a slow operation if the database is large.
+    # Returns the number of entries in the map.
+    #
+    # This operation scans the entire database to count the keys,
+    # so it can be be a slow operation if the database is large.
+    #
+    # @return [Fixnum]
     def count
       key_count = 0
       file_esc_key_set = Set.new
@@ -115,12 +131,19 @@ module CartonDb
     end
 
     # Removes all entries from the database, leaving it empty.
+    #
+    # This operation can be somewhat slow for a large database.
+    #
     def clear
       subdirs = to_enum(:each_subdir).to_a
       FileUtils.rm_rf subdirs
     end
 
     # Yields each entry in the database as a key/array pair.
+    #
+    # This operation can take a lot of total time for a large
+    # database, but yields entries pretty rapidly regardless
+    # of database size.
     #
     # @yieldparam key [String] The key of the entry.
     # @yeildparam array [Array<String>] The elements of the list
@@ -143,6 +166,9 @@ module CartonDb
 
     # Removes an entry from the database. Has no effect if the
     # entry already does not exist.
+    #
+    # This operation is fast, but may be slower for a larger
+    # database.
     #
     # @param key [String] The key identifying the entry to be
     #   deleted.
@@ -169,6 +195,9 @@ module CartonDb
     # created with a list containing the given element as its
     # content.
     #
+    # Since this will only append text to a file within the
+    # database, it is a very fast operation.
+    #
     # @param key [String] The key identifying the entry.
     # @param element [String] The element to be appended to the
     #   content of the entry.
@@ -184,6 +213,9 @@ module CartonDb
     # Appends any number of element strings to the content of an
     # entry. If the entry does not already exist, then one is
     # created with the given list as its content.
+    #
+    # Since this will only append text to a file within the
+    # database, it is a very fast operation.
     #
     # @param key [String] The key identifying the entry.
     # @param elements [Array<String>] An array or other
