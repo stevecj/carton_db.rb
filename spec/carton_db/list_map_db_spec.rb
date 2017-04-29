@@ -33,17 +33,17 @@ RSpec.describe CartonDb::ListMapDb do
     expect( subject['anything'] ).to be_nil
   end
 
-  it "creates an empty array by value assignment" do
+  it "creates an empty list entry by value assignment" do
     subject['the key'] = []
     expect( subject['the key'] ).to eq( [] )
   end
 
-  it "creates a populated array by value assignment" do
+  it "creates a populated list entry by value assignment" do
     subject['the key'] = ['element a', 'element b']
     expect( subject['the key'] ).to eq( ['element a', 'element b'] )
   end
 
-  it "overwrites an existing array by value assignment" do
+  it "overwrites an existing entry by value assignment" do
     subject['the key'] = ['element a', 'element b']
 
     subject['the key'] = []
@@ -53,29 +53,29 @@ RSpec.describe CartonDb::ListMapDb do
     expect( subject['the key'] ).to eq( ['one', 'two', 'three'] )
   end
 
-  it "deletes an existing empty-array entry" do
+  it "deletes an existing empty-list entry" do
     subject['the key'] = []
     subject.delete 'the key'
     expect( subject['the key'] ).to be_nil
   end
 
-  it "deletes an existing populated empty-array entry" do
+  it "deletes an existing populated list entry" do
     subject['the key'] = ['element a', 'element b']
     subject.delete 'the key'
     expect( subject['the key'] ).to be_nil
   end
 
-  it "creates an array when appending to a non-existent array" do
+  it "creates an entry when appending to a non-existent entry" do
     subject.append_to('the key', 'first element')
     expect( subject['the key'] ).to eq( ['first element'] )
   end
 
-  it "creates an empty array when concatenating an empty collection to a non-existent array" do
+  it "creates an empty entry when concatenating an empty collection to a non-existent entry" do
     subject.concat_to('the key', [])
     expect( subject['the key'] ).to eq( [] )
   end
 
-  it "creates a populated array when concatenating a populated collection to a non-existent array" do
+  it "creates a populated entry when concatenating a populated collection to a non-existent entry" do
     subject.concat_to('the key', ['element a', 'element b'])
     expect( subject['the key'] ).to eq( ['element a', 'element b'] )
   end
@@ -89,14 +89,14 @@ RSpec.describe CartonDb::ListMapDb do
       entries = (0...18_000).map { |n|
         element_count = n % 50
         key = n.to_s
-        array_val = (0...element_count).map(&:to_s)
-        [key, array_val]
+        content = (0...element_count).map(&:to_s)
+        [key, content]
       }
-      entries.each do |key, array_val|
-        subject[key] = array_val
+      entries.each do |key, content|
+        subject[key] = content
       end
-      entries.each do |key, array_val|
-        expect( subject[key] ).to eq( array_val )
+      entries.each do |key, content|
+        expect( subject[key] ).to eq( content )
       end
     ensure
       # Slow operation. Be slow here so next supposedly non-slow
@@ -118,12 +118,23 @@ RSpec.describe CartonDb::ListMapDb do
     expect( subject.count ).to be_zero
   end
 
-  it "has its number of key/array entries as its count when entries exist" do
+  it "has its number of entries (keys) as its count when entries exist" do
     subject['a'] = %w(a)
     subject['b'] = %w(a b)
     subject['c'] = %w(a b c)
 
     expect( subject.count ).to eq( 3 )
+  end
+
+  it "creates an empty array entry when a key is touched" do
+    subject.touch 'the key'
+    expect( subject['the key'] ).to eq( [] )
+  end
+
+  it "leaves an existing entry's content unchanged when its key is touched" do
+    subject['the key'] = ['a', 'b']
+    subject.touch 'the key'
+    expect( subject['the key'] ).to eq( ['a', 'b'] )
   end
 
   it "is empty and has a count of 0 after being cleared when already empty" do
@@ -133,7 +144,7 @@ RSpec.describe CartonDb::ListMapDb do
     expect( subject.count ).to be_zero
   end
 
-  it "is empty and has a count of 0 after being cleared when it has entries" do
+  it "is empty and has a count of 0 after being cleared when it had entries" do
     subject['key a'] = ['entry a1']
     subject['key b'] = ['entry b1', 'entry b2']
 
@@ -151,7 +162,7 @@ RSpec.describe CartonDb::ListMapDb do
     expect( subject[key] ).to eq( value )
   end
 
-  it "enumerates its key/array entries" do
+  it "enumerates its entries" do
     subject['key a'] = ['entry a1']
     subject['key b'] = ['entry b1', 'entry b2']
     subject['key c'] = []

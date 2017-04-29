@@ -130,6 +130,20 @@ module CartonDb
       key_count
     end
 
+    # Creates an entry with an empty list as its content if no
+    # entry exists for the given key. Has no effect on the content
+    # of the entry if it already exists.
+    #
+    # This does cause the database to grow slightly even though
+    # it might not change the effective content of the data
+    # because it appends a key-existence entry to the file
+    # without checking to see if it already contains other
+    # entries for the key.
+    #
+    def touch(key)
+      self.concat_to key, []
+    end
+
     # Removes all entries from the database, leaving it empty.
     #
     # This operation can be somewhat slow for a large database.
