@@ -10,7 +10,7 @@ module CartonDb
   # This is suitable for storing a total number of elements as
   # large as the low millions, with each entry containing a
   # number of elements in the hundreds or low thousands.
-  class ListMap
+  class ListMapDb
     extend Forwardable
     include Enumerable
 
@@ -213,6 +213,12 @@ module CartonDb
     # Appends any number of element strings to the content of an
     # entry. If the entry does not already exist, then one is
     # created with the given list as its content.
+    #
+    # Appending an empty array does cause the database to grow
+    # slightly even though it might not change the effective
+    # content of the data because it appends a key-existence
+    # entry to the file without checking to see if it already
+    # contains other entries for the key.
     #
     # Since this will only append text to a file within the
     # database, it is a very fast operation.

@@ -78,7 +78,7 @@ performance of particular database operations.
 ## Usage
 
 Currently, this gem includes only one kind of database, which is
-implemented by the `CartonDB::ListMap` class. It is a map of
+implemented by the `CartonDB::ListMapDb` class. It is a map of
 lists where each entry has a string for a key and a list of of 0
 or more string elements for a value.
 
@@ -89,7 +89,7 @@ Example:
 
     require 'carton_db'
 
-    db = CartonDb::ListMap.new('/tmp/my_list_map')
+    db = CartonDb::ListMapDb.new('/tmp/my_list_map')
 
     db['Some Key'] = ['element 1', 'element 2']
 

@@ -2,7 +2,7 @@
 require "spec_helper"
 require 'fileutils'
 
-RSpec.describe CartonDb::ListMap do
+RSpec.describe CartonDb::ListMapDb do
 
   before do
     destroy_workspace
