@@ -86,16 +86,29 @@ module CartonDb
       key = key.to_s
       file = file_path_for(key)
       return nil unless File.file?(file)
+
       esc_key = escape(key)
       ary = nil
-      each_file_esc_pair file do |l_esc_key, l_esc_element, line|
-        line.strip!
+      each_file_esc_pair file do |l_esc_key, l_esc_element|
         next ary unless l_esc_key == esc_key
         ary ||= []
         next unless l_esc_element
         ary << unescape(l_esc_element)
       end
       ary
+    end
+
+    def key?(key)
+      key = key.to_s
+      file = file_path_for(key)
+      return false unless File.file?(file)
+
+      esc_key = escape(key)
+      ary = nil
+      each_file_esc_pair file do |l_esc_key, _|
+        return true if l_esc_key == esc_key
+      end
+      false
     end
 
     # Returns true if the map has no entries.
@@ -195,7 +208,7 @@ module CartonDb
       esc_key = escape(key)
       new_file = "#{file}.new"
       open_overwrite new_file do |io|
-        each_file_esc_pair file do |l_esc_key, l_esc_element|
+        each_file_esc_pair file do |l_esc_key, l_esc_element, line|
           io << line unless l_esc_key == esc_key
         end
       end

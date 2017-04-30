@@ -137,6 +137,18 @@ RSpec.describe CartonDb::ListMapDb do
     expect( subject['the key'] ).to eq( ['a', 'b'] )
   end
 
+  it "indicates that it does not have a key when none of its entries has that key" do
+    subject['key a'] = ['abc']
+    expect( subject.key?('key b') ).to eq( false )
+  end
+
+  it "indicates that it has a key when one of its entries has that key" do
+    subject['key a'] = ['abc']
+    subject['key b'] = []
+    expect( subject.key?('key a') ).to eq( true )
+    expect( subject.key?('key b') ).to eq( true )
+  end
+
   it "is empty and has a count of 0 after being cleared when already empty" do
     subject.clear
 
