@@ -51,7 +51,7 @@ module CartonDb
       file = file_path_for(key)
       stat = File.stat(file) if File.file?(file)
       if stat.nil? or stat.zero?
-        concat_to key, content
+        concat_elements key, content
       else
         esc_key = (key)
         new_file = "#{file}.new"
@@ -104,7 +104,6 @@ module CartonDb
       return false unless File.file?(file)
 
       esc_key = escape(key)
-      ary = nil
       each_file_esc_pair file do |l_esc_key, _|
         return true if l_esc_key == esc_key
       end
@@ -147,14 +146,43 @@ module CartonDb
     # entry exists for the given key. Has no effect on the content
     # of the entry if it already exists.
     #
-    # This does cause the database to grow slightly even though
-    # it might not change the effective content of the data
-    # because it appends a key-existence entry to the file
-    # without checking to see if it already contains other
-    # entries for the key.
+    # Using :small optimization (the default), the operation may
+    # be slow for a large database since it checks for the
+    # existence of the key before marking its existence.
     #
-    def touch(key)
-      self.concat_to key, []
+    # Using :fast optimization, the operation will always be
+    # fast, but it will add a mark for the existence of the key
+    # even if that is redundant, thus adding to the size of the
+    # stored data.
+    #
+    # @param key [String] The key identifying the entry.
+    # @param optimization[:small, :fast] The optimization mode.
+    def touch(key, optimization: :small)
+      if optimization != :small && optimization != :fast
+        raise ArgumentError, "Invalid optimization value. Must be :small or :fast"
+      end
+
+      key = key.to_s
+      file = file_path_for(key)
+      stat = File.stat(file) if File.file?(file)
+
+      skip_key_check = (
+           optimization == :fast \
+        || stat.nil? \
+        || stat.zero?
+      )
+
+      esc_key = escape(key)
+
+      unless skip_key_check
+        each_file_esc_pair file do |l_esc_key, _|
+          return if l_esc_key == esc_key
+        end
+      end
+
+      open_append file do |io|
+        io << esc_key << "\n"
+      end
     end
 
     # Removes all entries from the database, leaving it empty.
@@ -228,7 +256,7 @@ module CartonDb
     # @param key [String] The key identifying the entry.
     # @param element [String] The element to be appended to the
     #   content of the entry.
-    def append_to(key, element)
+    def append_element(key, element)
       key = key.to_s
       file = file_path_for(key)
       FileUtils.mkpath File.dirname(file)
@@ -241,19 +269,21 @@ module CartonDb
     # entry. If the entry does not already exist, then one is
     # created with the given list as its content.
     #
-    # Appending an empty array does cause the database to grow
-    # slightly even though it might not change the effective
-    # content of the data because it appends a key-existence
-    # entry to the file without checking to see if it already
-    # contains other entries for the key.
+    # Appending an empty collection is equivalent to invoking
+    # `db.touch key, optimization: :small`.
     #
-    # Since this will only append text to a file within the
-    # database, it is a very fast operation.
+    # When appending a non-empty collection, this is a fast
+    # operation since it only append text to an existing file.
     #
     # @param key [String] The key identifying the entry.
     # @param elements [Array<String>] An array or other
     #   enumerable collection of elements to append.
-    def concat_to(key, elements)
+    def concat_elements(key, elements)
+      if empty_collection?(elements)
+        touch key, optimization: :small
+        return
+      end
+
       key = key.to_s
       file = file_path_for(key)
       FileUtils.mkpath File.dirname(file)
@@ -276,6 +306,10 @@ module CartonDb
     def_delegators CartonDb::Escaping,
       :escape,
       :unescape
+
+    def empty_collection?(collection)
+      ! collection.any? { true }
+    end
 
     def file_path_for(key)
       hex_hashcode = Digest::MD5.hexdigest(key)[0..3]
@@ -306,15 +340,22 @@ module CartonDb
     end
 
     def open_append(file)
+      touch_dir File.dirname(file)
       File.open file, 'a', **FILE_ENCODING_OPTS do |io|
         yield io
       end
     end
 
     def open_overwrite(file)
+      touch_dir File.dirname(file)
       File.open file, 'w', **FILE_ENCODING_OPTS do |io|
         yield io
       end
+    end
+
+    def touch_dir(dir)
+      return if File.directory?(dir)
+      FileUtils.mkdir dir
     end
 
     def each_data_file
@@ -343,6 +384,7 @@ module CartonDb
         yield file, stat
       end
     end
+
   end
 
 end

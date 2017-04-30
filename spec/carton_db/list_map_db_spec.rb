@@ -66,17 +66,17 @@ RSpec.describe CartonDb::ListMapDb do
   end
 
   it "creates an entry when appending to a non-existent entry" do
-    subject.append_to('the key', 'first element')
+    subject.append_element('the key', 'first element')
     expect( subject['the key'] ).to eq( ['first element'] )
   end
 
   it "creates an empty entry when concatenating an empty collection to a non-existent entry" do
-    subject.concat_to('the key', [])
+    subject.concat_elements('the key', [])
     expect( subject['the key'] ).to eq( [] )
   end
 
   it "creates a populated entry when concatenating a populated collection to a non-existent entry" do
-    subject.concat_to('the key', ['element a', 'element b'])
+    subject.concat_elements('the key', ['element a', 'element b'])
     expect( subject['the key'] ).to eq( ['element a', 'element b'] )
   end
 
@@ -110,7 +110,7 @@ RSpec.describe CartonDb::ListMapDb do
   end
 
   it "is not empty after an entry has been created" do
-    subject.append_to('the key', 'first element')
+    subject.append_element('the key', 'first element')
     expect( subject ).not_to be_empty
   end
 
@@ -126,15 +126,19 @@ RSpec.describe CartonDb::ListMapDb do
     expect( subject.count ).to eq( 3 )
   end
 
-  it "creates an empty array entry when a key is touched" do
-    subject.touch 'the key'
-    expect( subject['the key'] ).to eq( [] )
-  end
+  [:small, :fast].each do |optimization|
+    context "using #{optimization} optimization" do
+      it "creates an empty array entry when a key is touched" do
+        subject.touch 'the key', optimization: optimization
+        expect( subject['the key'] ).to eq( [] )
+      end
 
-  it "leaves an existing entry's content unchanged when its key is touched" do
-    subject['the key'] = ['a', 'b']
-    subject.touch 'the key'
-    expect( subject['the key'] ).to eq( ['a', 'b'] )
+      it "leaves an existing entry's content unchanged when its key is touched" do
+        subject['the key'] = ['a', 'b']
+        subject.touch 'the key', optimization: optimization
+        expect( subject['the key'] ).to eq( ['a', 'b'] )
+      end
+    end
   end
 
   it "indicates that it does not have a key when none of its entries has that key" do
