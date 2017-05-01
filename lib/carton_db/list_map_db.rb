@@ -47,12 +47,12 @@ module CartonDb
     #   enumerable collection of 0 or more list element string
     #   values to be stored.
     def []=(key, content)
-      key = key.to_s
-      data_file = data_file_containing(key)
+      key_d = ListMapDb::Datum.new(plain: key)
+      data_file = data_file_containing(key_d.plain)
       if data_file.empty?
-        concat_elements key, content
+        concat_elements key_d.plain, content
       else
-        replace_entry_in_file data_file, key, content
+        replace_entry_in_file data_file, key_d, content
       end
     end
 
@@ -66,29 +66,26 @@ module CartonDb
     # @return [Array<String>] if a matching entry exists.
     # @return [nil] if no matching entry exists.
     def [](key)
-      key = key.to_s
-      data_file = data_file_containing(key)
+      key_d = ListMapDb::Datum.new(plain: key)
+      data_file = data_file_containing(key_d.plain)
       return nil if data_file.empty?
 
-      esc_key = escape(key)
       ary = nil
-      each_file_esc_pair data_file do |l_esc_key, l_esc_element|
-        next ary unless l_esc_key == esc_key
+      each_datum_pair_in_file data_file do |kd, ed|
+        next ary unless kd == key_d
         ary ||= []
-        next unless l_esc_element
-        ary << unescape(l_esc_element)
+        ary << ed.plain unless ed.placeholder?
       end
       ary
     end
 
     def key?(key)
-      key = key.to_s
-      data_file = data_file_containing(key)
+      key_d = ListMapDb::Datum.new(plain: key)
+      data_file = data_file_containing(key_d.plain)
       return false if data_file.empty?
 
-      esc_key = escape(key)
-      each_file_esc_pair data_file do |l_esc_key, _|
-        return true if l_esc_key == esc_key
+      each_datum_pair_in_file data_file do |kd, _|
+        return true if kd = key_d
       end
       false
     end
@@ -113,14 +110,14 @@ module CartonDb
     # @return [Fixnum]
     def count
       key_count = 0
-      file_esc_key_set = Set.new
+      file_key_datum_set = Set.new
       each_data_file do |data_file|
         next if data_file.empty?
-        file_esc_key_set.clear
-        each_file_esc_pair data_file do |esc_key, _|
-          file_esc_key_set << esc_key
+        file_key_datum_set.clear
+        each_datum_pair_in_file data_file do |kd, _|
+          file_key_datum_set << kd
         end
-        key_count += file_esc_key_set.length
+        key_count += file_key_datum_set.length
       end
       key_count
     end
@@ -145,19 +142,17 @@ module CartonDb
         raise ArgumentError, "Invalid optimization value. Must be :small or :fast"
       end
 
-      key = key.to_s
-      data_file = data_file_containing(key)
-
-      esc_key = escape(key)
+      key_d = ListMapDb::Datum.new(plain: key)
+      data_file = data_file_containing(key_d.plain)
 
       if optimization == :small && data_file.content?
-        each_file_esc_pair data_file do |l_esc_key, _|
-          return if l_esc_key == esc_key
+        each_datum_pair_in_file data_file do |kd, _|
+          return if kd == key_d
         end
       end
 
       data_file.open_append do |io|
-        io << esc_key << "\n"
+        io << key_d.escaped << "\n"
       end
     end
 
@@ -180,17 +175,16 @@ module CartonDb
     # @yeildparam array [Array<String>] The elements of the list
     #   entry's content.
     def each
-      esc_key_arrays_slice = {}
+      key_arrays_slice = {}
       each_data_file do |data_file|
         next if data_file.empty?
-        esc_key_arrays_slice.clear
-        each_file_esc_pair data_file do |esc_key, esc_element|
-          array = esc_key_arrays_slice[esc_key] ||= []
-          array << unescape(esc_element) if esc_element
+        key_arrays_slice.clear
+        each_datum_pair_in_file data_file do |kd, ed|
+          array = key_arrays_slice[kd] ||= []
+          array << ed.plain unless ed.placeholder?
         end
-        esc_key_arrays_slice.each do |esc_key, array|
-          key = unescape(esc_key)
-          yield key, array
+        key_arrays_slice.each do |kd, array|
+          yield kd.plain, array
         end
       end
     end
@@ -204,15 +198,14 @@ module CartonDb
     # @param key [String] The key identifying the entry to be
     #   deleted.
     def delete(key)
-      key = key.to_s
-      data_file = data_file_containing(key)
+      key_d = ListMapDb::Datum.new(plain: key)
+      data_file = data_file_containing(key_d.plain)
       return if data_file.empty?
 
-      esc_key = escape(key)
       new_data_file = ListMapDb::DataFile.new("#{data_file.filename}.new")
       new_data_file.open_overwrite do |io|
-        each_file_esc_pair data_file do |l_esc_key, l_esc_element, line|
-          io << line unless l_esc_key == esc_key
+        each_datum_pair_in_file data_file do |kd, _, line|
+          io << line unless kd == key_d
         end
       end
 
@@ -232,11 +225,12 @@ module CartonDb
     # @param element [String] The element to be appended to the
     #   content of the entry.
     def append_element(key, element)
-      key = key.to_s
-      data_file = data_file_containing(key)
+      key_d = ListMapDb::Datum.new(plain: key)
+      element_d = ListMapDb::Datum.new(plain: element)
+      data_file = data_file_containing(key_d.plain)
       FileUtils.mkpath File.dirname(data_file.filename)
       data_file.open_append do |io|
-        io.puts "#{escape(key)}\t#{escape(element)}"
+        io << "#{key_d.escaped}\t#{element_d.escaped}\n"
       end
     end
 
@@ -259,17 +253,71 @@ module CartonDb
         return
       end
 
-      key = key.to_s
-      data_file = data_file_containing(key)
+      key_d = ListMapDb::Datum.new(plain: key)
+      data_file = data_file_containing(key_d.plain)
       data_file.open_append do |io|
         element_count = 0
         elements.each do |element|
+          element_d = ListMapDb::Datum.new(plain: element)
           element_count += 1
-          io.puts "#{escape(key)}\t#{escape(element)}"
+          io<< "#{key_d.escaped}\t#{element_d.escaped}\n"
         end
         if element_count.zero?
-          io.puts escape(key)
+          io.puts key_d.escaped
         end
+      end
+    end
+
+    class Datum
+      def initialize(plain: nil, escaped: nil)
+        @plain = plain&.to_s
+        @escaped = escaped&.to_s
+        @placeholder = plain.nil? && escaped.nil?
+      end
+
+      def plain
+        @plain ||= CartonDb::Escaping.unescape(@escaped)
+      end
+
+      def escaped
+        @escaped ||= CartonDb::Escaping.escape(@plain)
+      end
+
+      def placeholder?
+        @placeholder
+      end
+
+      def eql?(other)
+        if self.class != other.class
+          false
+        elsif @escaped && other._escaped
+          @escaped == other._escaped
+        elsif @plain && other._plain
+          @plain == other._plain
+        elsif @placeholder
+          @placeholder == other.placeholder?
+        else
+          escaped == other.escaped
+        end
+      end
+
+      alias == eql?
+
+      def hash
+        # It is more common to already know the escaped value
+        # than to already know the plain value, so this should
+        # be faster on average.
+        escaped.hash
+      end
+
+      protected
+
+      def _plain
+        @plain
+      end
+
+      def _escaped
+        @escaped
       end
     end
 
@@ -333,20 +381,20 @@ module CartonDb
       :escape,
       :unescape
 
-    def replace_entry_in_file(data_file, key, content)
-      esc_key = (key)
+    def replace_entry_in_file(data_file, key_d, content)
       new_data_file = ListMapDb::DataFile.new("#{data_file.filename}.new")
       new_data_file.open_overwrite do |nf_io|
-        each_file_esc_pair data_file do |l_esc_key, l_esc_element, line|
-          nf_io.print line unless l_esc_key == esc_key
+        each_datum_pair_in_file data_file do |kd, _, line|
+          nf_io.print line unless kd == key_d
         end
         element_count = 0
         content.each do |element|
+          element_d = Datum.new(plain: element)
           element_count += 1
-          nf_io.puts "#{escape(key)}\t#{escape(element)}"
+          nf_io.puts "#{key_d.escaped}\t#{element_d.escaped}"
         end
         if element_count.zero?
-          nf_io.puts esc_key
+          nf_io.puts key_d.escaped
         end
       end
       File.unlink data_file.filename
@@ -365,10 +413,12 @@ module CartonDb
       File.join(name, subdir, filename)
     end
 
-    def each_file_esc_pair(data_file)
+    def each_datum_pair_in_file(data_file)
       each_file_line data_file do |line|
         esc_key, esc_element = line.strip.split("\t", 2)
-        yield esc_key, esc_element, line
+        key_d = ListMapDb::Datum.new(escaped: esc_key)
+        element_d = ListMapDb::Datum.new(escaped: esc_element)
+        yield key_d, element_d, line
       end
     end
 
@@ -379,31 +429,6 @@ module CartonDb
         end
       end
     end
-
-#    def open_read(file)
-#      File.open file, 'r', **FILE_ENCODING_OPTS do |io|
-#        yield io
-#      end
-#    end
-#
-#    def open_append(file)
-#      touch_dir File.dirname(file)
-#      File.open file, 'a', **FILE_ENCODING_OPTS do |io|
-#        yield io
-#      end
-#    end
-#
-#    def open_overwrite(file)
-#      touch_dir File.dirname(file)
-#      File.open file, 'w', **FILE_ENCODING_OPTS do |io|
-#        yield io
-#      end
-#    end
-#
-#    def touch_dir(dir)
-#      return if File.directory?(dir)
-#      FileUtils.mkdir dir
-#    end
 
     def each_data_file
       each_subdir do |subdir|
