@@ -40,7 +40,7 @@ module CartonDb
     #
     # The is a fairly fast operation, but can be somewhat
     # slower in a large database. Note that appending and
-    # concatenating may be faster.
+    # concatenating may be faster than assignment.
     #
     # @param key [String] The key identifying the entry.
     # @param content [Array<String>] An array or other
@@ -48,28 +48,11 @@ module CartonDb
     #   values to be stored.
     def []=(key, content)
       key = key.to_s
-      file = file_path_for(key)
-      stat = File.stat(file) if File.file?(file)
-      if stat.nil? or stat.zero?
+      data_file = data_file_containing(key)
+      if data_file.empty?
         concat_elements key, content
       else
-        esc_key = (key)
-        new_file = "#{file}.new"
-        open_overwrite new_file do |nf_io|
-          each_file_esc_pair file do |l_esc_key, l_esc_element, line|
-            nf_io.print line unless l_esc_key == esc_key
-          end
-          element_count = 0
-          content.each do |element|
-            element_count += 1
-            nf_io.puts "#{escape(key)}\t#{escape(element)}"
-          end
-          if element_count.zero?
-            nf_io.puts escape(key)
-          end
-        end
-        File.unlink file
-        File.rename new_file, file
+        replace_entry_in_file data_file, key, content
       end
     end
 
@@ -84,12 +67,12 @@ module CartonDb
     # @return [nil] if no matching entry exists.
     def [](key)
       key = key.to_s
-      file = file_path_for(key)
-      return nil unless File.file?(file)
+      data_file = data_file_containing(key)
+      return nil if data_file.empty?
 
       esc_key = escape(key)
       ary = nil
-      each_file_esc_pair file do |l_esc_key, l_esc_element|
+      each_file_esc_pair data_file do |l_esc_key, l_esc_element|
         next ary unless l_esc_key == esc_key
         ary ||= []
         next unless l_esc_element
@@ -100,11 +83,11 @@ module CartonDb
 
     def key?(key)
       key = key.to_s
-      file = file_path_for(key)
-      return false unless File.file?(file)
+      data_file = data_file_containing(key)
+      return false if data_file.empty?
 
       esc_key = escape(key)
-      each_file_esc_pair file do |l_esc_key, _|
+      each_file_esc_pair data_file do |l_esc_key, _|
         return true if l_esc_key == esc_key
       end
       false
@@ -116,8 +99,8 @@ module CartonDb
     #
     # @return [Boolean]
     def empty?
-      each_data_file do |file, stat|
-        return false unless stat.zero?
+      each_data_file do |data_file|
+        return false unless data_file.empty?
       end
       true
     end
@@ -131,10 +114,10 @@ module CartonDb
     def count
       key_count = 0
       file_esc_key_set = Set.new
-      each_data_file do |file, stat|
-        next if stat.zero?
+      each_data_file do |data_file|
+        next if data_file.empty?
         file_esc_key_set.clear
-        each_file_esc_pair file do |esc_key, _|
+        each_file_esc_pair data_file do |esc_key, _|
           file_esc_key_set << esc_key
         end
         key_count += file_esc_key_set.length
@@ -163,24 +146,17 @@ module CartonDb
       end
 
       key = key.to_s
-      file = file_path_for(key)
-      stat = File.stat(file) if File.file?(file)
-
-      skip_key_check = (
-           optimization == :fast \
-        || stat.nil? \
-        || stat.zero?
-      )
+      data_file = data_file_containing(key)
 
       esc_key = escape(key)
 
-      unless skip_key_check
-        each_file_esc_pair file do |l_esc_key, _|
+      if optimization == :small && data_file.content?
+        each_file_esc_pair data_file do |l_esc_key, _|
           return if l_esc_key == esc_key
         end
       end
 
-      open_append file do |io|
+      data_file.open_append do |io|
         io << esc_key << "\n"
       end
     end
@@ -205,10 +181,10 @@ module CartonDb
     #   entry's content.
     def each
       esc_key_arrays_slice = {}
-      each_data_file do |file, stat|
-        next if stat.zero?
+      each_data_file do |data_file|
+        next if data_file.empty?
         esc_key_arrays_slice.clear
-        each_file_esc_pair file do |esc_key, esc_element|
+        each_file_esc_pair data_file do |esc_key, esc_element|
           array = esc_key_arrays_slice[esc_key] ||= []
           array << unescape(esc_element) if esc_element
         end
@@ -229,20 +205,19 @@ module CartonDb
     #   deleted.
     def delete(key)
       key = key.to_s
-      file = file_path_for(key)
-      stat = File.stat(file) if File.file?(file)
-      return if stat.nil? or stat.zero?
+      data_file = data_file_containing(key)
+      return if data_file.empty?
 
       esc_key = escape(key)
-      new_file = "#{file}.new"
-      open_overwrite new_file do |io|
-        each_file_esc_pair file do |l_esc_key, l_esc_element, line|
+      new_data_file = ListMapDb::DataFile.new("#{data_file.filename}.new")
+      new_data_file.open_overwrite do |io|
+        each_file_esc_pair data_file do |l_esc_key, l_esc_element, line|
           io << line unless l_esc_key == esc_key
         end
       end
 
-      File.unlink file
-      File.rename new_file, file
+      File.unlink data_file.filename
+      File.rename new_data_file.filename, data_file.filename
     end
 
     # Appends an element string to the content of an entry.
@@ -258,9 +233,9 @@ module CartonDb
     #   content of the entry.
     def append_element(key, element)
       key = key.to_s
-      file = file_path_for(key)
-      FileUtils.mkpath File.dirname(file)
-      open_append file do |io|
+      data_file = data_file_containing(key)
+      FileUtils.mkpath File.dirname(data_file.filename)
+      data_file.open_append do |io|
         io.puts "#{escape(key)}\t#{escape(element)}"
       end
     end
@@ -285,9 +260,8 @@ module CartonDb
       end
 
       key = key.to_s
-      file = file_path_for(key)
-      FileUtils.mkpath File.dirname(file)
-      open_append file do |io|
+      data_file = data_file_containing(key)
+      data_file.open_append do |io|
         element_count = 0
         elements.each do |element|
           element_count += 1
@@ -299,6 +273,58 @@ module CartonDb
       end
     end
 
+    class DataFile
+      attr_accessor :filename
+      private       :filename=
+
+      def initialize(filename)
+        self.filename = filename
+      end
+
+      def content?
+        stat && ! stat.zero?
+      end
+
+      def empty?
+        ! content?
+      end
+
+      def open_read
+        File.open filename, 'r', **FILE_ENCODING_OPTS do |io|
+          yield io
+        end
+      end
+
+      def open_append
+        touch_dir
+        File.open filename, 'a', **FILE_ENCODING_OPTS do |io|
+          yield io
+        end
+      end
+
+      def open_overwrite
+        touch_dir
+        File.open filename, 'w', **FILE_ENCODING_OPTS do |io|
+          yield io
+        end
+      end
+
+      private
+
+      def stat
+        return @stat if defined? @stat
+        return @stat = nil unless File.file?(filename)
+        return @stat = File.stat(filename)
+      end
+
+      def touch_dir
+        dir = File.dirname(filename)
+        return if File.directory?(dir)
+        FileUtils.mkdir dir
+      end
+
+    end
+
     private
 
     attr_accessor :name
@@ -307,8 +333,29 @@ module CartonDb
       :escape,
       :unescape
 
-    def empty_collection?(collection)
-      ! collection.any? { true }
+    def replace_entry_in_file(data_file, key, content)
+      esc_key = (key)
+      new_data_file = ListMapDb::DataFile.new("#{data_file.filename}.new")
+      new_data_file.open_overwrite do |nf_io|
+        each_file_esc_pair data_file do |l_esc_key, l_esc_element, line|
+          nf_io.print line unless l_esc_key == esc_key
+        end
+        element_count = 0
+        content.each do |element|
+          element_count += 1
+          nf_io.puts "#{escape(key)}\t#{escape(element)}"
+        end
+        if element_count.zero?
+          nf_io.puts esc_key
+        end
+      end
+      File.unlink data_file.filename
+      File.rename new_data_file.filename, data_file.filename
+    end
+
+    def data_file_containing(key)
+      filename = file_path_for(key)
+      ListMapDb::DataFile.new(filename)
     end
 
     def file_path_for(key)
@@ -318,50 +365,50 @@ module CartonDb
       File.join(name, subdir, filename)
     end
 
-    def each_file_esc_pair(file)
-      each_file_line file do |line|
+    def each_file_esc_pair(data_file)
+      each_file_line data_file do |line|
         esc_key, esc_element = line.strip.split("\t", 2)
         yield esc_key, esc_element, line
       end
     end
 
-    def each_file_line(file)
-      open_read file do |io|
+    def each_file_line(data_file)
+      data_file.open_read do |io|
         io.each_line do |line|
           yield line
         end
       end
     end
 
-    def open_read(file)
-      File.open file, 'r', **FILE_ENCODING_OPTS do |io|
-        yield io
-      end
-    end
-
-    def open_append(file)
-      touch_dir File.dirname(file)
-      File.open file, 'a', **FILE_ENCODING_OPTS do |io|
-        yield io
-      end
-    end
-
-    def open_overwrite(file)
-      touch_dir File.dirname(file)
-      File.open file, 'w', **FILE_ENCODING_OPTS do |io|
-        yield io
-      end
-    end
-
-    def touch_dir(dir)
-      return if File.directory?(dir)
-      FileUtils.mkdir dir
-    end
+#    def open_read(file)
+#      File.open file, 'r', **FILE_ENCODING_OPTS do |io|
+#        yield io
+#      end
+#    end
+#
+#    def open_append(file)
+#      touch_dir File.dirname(file)
+#      File.open file, 'a', **FILE_ENCODING_OPTS do |io|
+#        yield io
+#      end
+#    end
+#
+#    def open_overwrite(file)
+#      touch_dir File.dirname(file)
+#      File.open file, 'w', **FILE_ENCODING_OPTS do |io|
+#        yield io
+#      end
+#    end
+#
+#    def touch_dir(dir)
+#      return if File.directory?(dir)
+#      FileUtils.mkdir dir
+#    end
 
     def each_data_file
       each_subdir do |subdir|
-        each_data_file_in subdir do |file, stat|
-          yield file, stat
+        each_data_file_in subdir do |data_file|
+          yield data_file
         end
       end
     end
@@ -378,11 +425,13 @@ module CartonDb
     def each_data_file_in(dir)
       Dir.entries(dir).each do |e|
         next unless e =~ /^\d{1,3}[.]txt$/
-        file = File.join(dir, e)
-        stat = File.stat(file)
-        next unless stat.file?
-        yield file, stat
+        filename = File.join(dir, e)
+        yield ListMapDb::DataFile.new( filename )
       end
+    end
+
+    def empty_collection?(collection)
+      ! collection.any? { true }
     end
 
   end
