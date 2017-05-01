@@ -47,7 +47,7 @@ module CartonDb
     #   enumerable collection of 0 or more list element string
     #   values to be stored.
     def []=(key, content)
-      key_d = ListMapDb::Datum.new(plain: key)
+      key_d = CartonDb::Datum.new(plain: key)
       data_file = data_file_containing(key_d.plain)
       if data_file.empty?
         concat_elements key_d.plain, content
@@ -66,7 +66,7 @@ module CartonDb
     # @return [Array<String>] if a matching entry exists.
     # @return [nil] if no matching entry exists.
     def [](key)
-      key_d = ListMapDb::Datum.new(plain: key)
+      key_d = CartonDb::Datum.new(plain: key)
       data_file = data_file_containing(key_d.plain)
       return nil if data_file.empty?
 
@@ -80,7 +80,7 @@ module CartonDb
     end
 
     def key?(key)
-      key_d = ListMapDb::Datum.new(plain: key)
+      key_d = CartonDb::Datum.new(plain: key)
       data_file = data_file_containing(key_d.plain)
       return false if data_file.empty?
 
@@ -142,7 +142,7 @@ module CartonDb
         raise ArgumentError, "Invalid optimization value. Must be :small or :fast"
       end
 
-      key_d = ListMapDb::Datum.new(plain: key)
+      key_d = CartonDb::Datum.new(plain: key)
       data_file = data_file_containing(key_d.plain)
 
       if optimization == :small && data_file.content?
@@ -198,7 +198,7 @@ module CartonDb
     # @param key [String] The key identifying the entry to be
     #   deleted.
     def delete(key)
-      key_d = ListMapDb::Datum.new(plain: key)
+      key_d = CartonDb::Datum.new(plain: key)
       data_file = data_file_containing(key_d.plain)
       return if data_file.empty?
 
@@ -225,8 +225,8 @@ module CartonDb
     # @param element [String] The element to be appended to the
     #   content of the entry.
     def append_element(key, element)
-      key_d = ListMapDb::Datum.new(plain: key)
-      element_d = ListMapDb::Datum.new(plain: element)
+      key_d = CartonDb::Datum.new(plain: key)
+      element_d = CartonDb::Datum.new(plain: element)
       data_file = data_file_containing(key_d.plain)
       FileUtils.mkpath File.dirname(data_file.filename)
       data_file.open_append do |io|
@@ -253,71 +253,18 @@ module CartonDb
         return
       end
 
-      key_d = ListMapDb::Datum.new(plain: key)
+      key_d = CartonDb::Datum.new(plain: key)
       data_file = data_file_containing(key_d.plain)
       data_file.open_append do |io|
         element_count = 0
         elements.each do |element|
-          element_d = ListMapDb::Datum.new(plain: element)
+          element_d = CartonDb::Datum.new(plain: element)
           element_count += 1
           io<< "#{key_d.escaped}\t#{element_d.escaped}\n"
         end
         if element_count.zero?
           io.puts key_d.escaped
         end
-      end
-    end
-
-    class Datum
-      def initialize(plain: nil, escaped: nil)
-        @plain = plain&.to_s
-        @escaped = escaped&.to_s
-        @placeholder = plain.nil? && escaped.nil?
-      end
-
-      def plain
-        @plain ||= CartonDb::Escaping.unescape(@escaped)
-      end
-
-      def escaped
-        @escaped ||= CartonDb::Escaping.escape(@plain)
-      end
-
-      def placeholder?
-        @placeholder
-      end
-
-      def eql?(other)
-        if self.class != other.class
-          false
-        elsif @escaped && other._escaped
-          @escaped == other._escaped
-        elsif @plain && other._plain
-          @plain == other._plain
-        elsif @placeholder
-          @placeholder == other.placeholder?
-        else
-          escaped == other.escaped
-        end
-      end
-
-      alias == eql?
-
-      def hash
-        # It is more common to already know the escaped value
-        # than to already know the plain value, so this should
-        # be faster on average.
-        escaped.hash
-      end
-
-      protected
-
-      def _plain
-        @plain
-      end
-
-      def _escaped
-        @escaped
       end
     end
 
@@ -389,7 +336,7 @@ module CartonDb
         end
         element_count = 0
         content.each do |element|
-          element_d = Datum.new(plain: element)
+          element_d = CartonDb::Datum.new(plain: element)
           element_count += 1
           nf_io.puts "#{key_d.escaped}\t#{element_d.escaped}"
         end
@@ -416,8 +363,8 @@ module CartonDb
     def each_datum_pair_in_file(data_file)
       each_file_line data_file do |line|
         esc_key, esc_element = line.strip.split("\t", 2)
-        key_d = ListMapDb::Datum.new(escaped: esc_key)
-        element_d = ListMapDb::Datum.new(escaped: esc_element)
+        key_d = CartonDb::Datum.new(escaped: esc_key)
+        element_d = CartonDb::Datum.new(escaped: esc_element)
         yield key_d, element_d, line
       end
     end
