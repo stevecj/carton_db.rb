@@ -1,56 +1,140 @@
 module CartonDb
-  class Datum
-    def initialize(plain: nil, escaped: nil)
-      @plain = plain&.to_s
-      @escaped = escaped&.to_s
-      @placeholder = plain.nil? && escaped.nil?
-    end
 
-    def plain
-      return nil if @placeholder
-      @plain ||= CartonDb::Escaping.unescape(@escaped)
-    end
+  module Datum
 
-    def escaped
-      return nil if @placeholder
-      @escaped ||= CartonDb::Escaping.escape(@plain)
-    end
-
-    def placeholder?
-      @placeholder
-    end
-
-    def eql?(other)
-      if self.class != other.class
-        false
-      elsif @escaped && other._escaped
-        @escaped == other._escaped
-      elsif @plain && other._plain
-        @plain == other._plain
-      elsif @placeholder
-        @placeholder == other.placeholder?
+    def self.for_plain(plain_text, auto_placeholder: false)
+      if auto_placeholder && plain_text.nil?
+        Datum::Placeholder
       else
-        escaped == other.escaped
+        Datum::ForPlain.new(plain_text)
       end
     end
 
-    alias == eql?
-
-    def hash
-      # It is more common to already know the escaped value
-      # than to already know the plain value, so this should
-      # be faster on average.
-      escaped.hash
+    def self.for_escaped(escaped_text, auto_placeholder: false)
+      if auto_placeholder && escaped_text.nil?
+        Datum::Placeholder
+      else
+        Datum::ForEscaped.new(escaped_text)
+      end
     end
 
-    protected
-
-    def _plain
-      @plain
+    def self.placeholder
+      Datum::Placeholder
     end
 
-    def _escaped
-      @escaped
+    class Base
+      def plain
+        raise NotImplementedError, "Subclass responsibility."
+      end
+
+      def escaped
+        raise NotImplementedError, "Subclass responsibility."
+      end
+
+      def placeholder?
+        raise NotImplementedError, "Subclass responsibility."
+      end
+
+      def eql?(other)
+        raise NotImplementedError, "Subclass responsibility."
+      end
+
+      alias == eql?
+
+      def hash
+        raise NotImplementedError, "Subclass responsibility."
+      end
     end
+
+    class ForPlain < Datum::Base
+      attr_reader :plain
+
+      def initialize(plain)
+        if plain.nil?
+          raise ArgumentError "A non-nil 'plain' value is required."
+        end
+        @plain = plain
+      end
+
+      def escaped
+        @escaped ||= CartonDb::Escaping.escape(@plain)
+      end
+
+      def placeholder?
+        false
+      end
+
+      def eql?(other)
+        return false unless other.is_a?(Datum::Base)
+        return true if other.class == self.class && @plain == other.plain
+        return escaped == other.escaped
+      end
+
+      alias == eql?
+
+      def hash
+        escaped.hash
+      end
+    end
+
+    class ForEscaped < Datum::Base
+      attr_reader :escaped
+
+      def initialize(escaped)
+        if escaped.nil?
+          raise ArgumentError "A non-nil 'escaped' value is required."
+        end
+        @escaped = escaped
+      end
+
+      def plain
+        @plain ||= CartonDb::Escaping.unescape(@escaped)
+      end
+
+      def placeholder?
+        false
+      end
+
+      def eql?(other)
+        return false unless other.is_a?(Datum::Base)
+        return true if other.class == self.class && @escaped == other.escaped
+        return escaped == other.escaped
+      end
+
+      alias == eql?
+
+      def hash
+        escaped.hash
+      end
+    end
+
+    class PlaceholderClass < Datum::Base
+      def plain
+        nil
+      end
+
+      def escaped
+        nil
+      end
+
+      def placeholder?
+        true
+      end
+
+      def eql?(other)
+        return false unless other.is_a?(Datum::Base)
+        return other.placeholder?
+      end
+
+      alias == eql?
+
+      def hash
+        PlaceholderClass.hash
+      end
+    end
+
+    Placeholder = PlaceholderClass.new
+
   end
+
 end

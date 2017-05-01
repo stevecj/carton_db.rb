@@ -48,7 +48,7 @@ module CartonDb
     #   enumerable collection of 0 or more list element string
     #   values to be stored.
     def []=(key, content)
-      key_d = CartonDb::Datum.new(plain: key)
+      key_d = CartonDb::Datum.for_plain(key)
       data_file = data_file_containing(key_d.plain)
       if data_file.empty?
         concat_elements key_d.plain, content
@@ -67,7 +67,7 @@ module CartonDb
     # @return [Array<String>] if a matching entry exists.
     # @return [nil] if no matching entry exists.
     def [](key)
-      key_d = CartonDb::Datum.new(plain: key)
+      key_d = CartonDb::Datum.for_plain(key)
       data_file = data_file_containing(key_d.plain)
       return nil if data_file.empty?
 
@@ -81,7 +81,7 @@ module CartonDb
     end
 
     def key?(key)
-      key_d = CartonDb::Datum.new(plain: key)
+      key_d = CartonDb::Datum.for_plain(key)
       data_file = data_file_containing(key_d.plain)
       return false if data_file.empty?
 
@@ -143,7 +143,7 @@ module CartonDb
         raise ArgumentError, "Invalid optimization value. Must be :small or :fast"
       end
 
-      key_d = CartonDb::Datum.new(plain: key)
+      key_d = CartonDb::Datum.for_plain(key)
       data_file = data_file_containing(key_d.plain)
 
       if optimization == :small && data_file.content?
@@ -199,7 +199,7 @@ module CartonDb
     # @param key [String] The key identifying the entry to be
     #   deleted.
     def delete(key)
-      key_d = CartonDb::Datum.new(plain: key)
+      key_d = CartonDb::Datum.for_plain(key)
       data_file = data_file_containing(key_d.plain)
       return if data_file.empty?
 
@@ -226,8 +226,8 @@ module CartonDb
     # @param element [String] The element to be appended to the
     #   content of the entry.
     def append_element(key, element)
-      key_d = CartonDb::Datum.new(plain: key)
-      element_d = CartonDb::Datum.new(plain: element)
+      key_d = CartonDb::Datum.for_plain(key)
+      element_d = CartonDb::Datum.for_plain(element)
       data_file = data_file_containing(key_d.plain)
       FileUtils.mkpath File.dirname(data_file.filename)
       data_file.open_append do |io|
@@ -268,11 +268,11 @@ module CartonDb
     # @param elements [Array<String>] An array or other
     #   enumerable collection of elements to append.
     def concat_any_elements(key, elements)
-      key_d = CartonDb::Datum.new(plain: key)
+      key_d = CartonDb::Datum.for_plain(key)
       data_file = data_file_containing(key_d.plain)
       data_file.open_append do |io|
         elements.each do |element|
-          element_d = CartonDb::Datum.new(plain: element)
+          element_d = CartonDb::Datum.for_plain(element)
           io<< "#{key_d.escaped}\t#{element_d.escaped}\n"
         end
       end
@@ -290,7 +290,7 @@ module CartonDb
         end
         element_count = 0
         content.each do |element|
-          element_d = CartonDb::Datum.new(plain: element)
+          element_d = CartonDb::Datum.for_plain(element)
           element_count += 1
           nf_io.puts "#{key_d.escaped}\t#{element_d.escaped}"
         end

@@ -24,8 +24,9 @@ module CartonDb
       def each_entry_element_line
         each_line do |line|
           esc_key, esc_element = line.strip.split("\t", 2)
-          key_d = CartonDb::Datum.new(escaped: esc_key)
-          element_d = CartonDb::Datum.new(escaped: esc_element)
+          key_d = CartonDb::Datum.for_escaped(esc_key)
+          element_d = CartonDb::Datum.for_escaped(
+            esc_element, auto_placeholder: true)
           yield key_d, element_d, line
         end
       end
