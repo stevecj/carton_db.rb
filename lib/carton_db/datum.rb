@@ -7,10 +7,12 @@ module CartonDb
     end
 
     def plain
+      return nil if @placeholder
       @plain ||= CartonDb::Escaping.unescape(@escaped)
     end
 
     def escaped
+      return nil if @placeholder
       @escaped ||= CartonDb::Escaping.escape(@plain)
     end
 

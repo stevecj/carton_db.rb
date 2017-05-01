@@ -2,6 +2,7 @@
 require 'forwardable'
 require 'fileutils'
 require 'digest'
+require 'carton_db/list_map_db/segment'
 
 module CartonDb
 
@@ -202,7 +203,7 @@ module CartonDb
       data_file = data_file_containing(key_d.plain)
       return if data_file.empty?
 
-      new_data_file = ListMapDb::DataFile.new("#{data_file.filename}.new")
+      new_data_file = ListMapDb::Segment.new("#{data_file.filename}.new")
       new_data_file.open_overwrite do |io|
         each_datum_pair_in_file data_file do |kd, _, line|
           io << line unless kd == key_d
@@ -268,68 +269,12 @@ module CartonDb
       end
     end
 
-    class DataFile
-      attr_accessor :filename
-      private       :filename=
-
-      def initialize(filename)
-        self.filename = filename
-      end
-
-      def content?
-        stat && ! stat.zero?
-      end
-
-      def empty?
-        ! content?
-      end
-
-      def open_read
-        File.open filename, 'r', **FILE_ENCODING_OPTS do |io|
-          yield io
-        end
-      end
-
-      def open_append
-        touch_dir
-        File.open filename, 'a', **FILE_ENCODING_OPTS do |io|
-          yield io
-        end
-      end
-
-      def open_overwrite
-        touch_dir
-        File.open filename, 'w', **FILE_ENCODING_OPTS do |io|
-          yield io
-        end
-      end
-
-      private
-
-      def stat
-        return @stat if defined? @stat
-        return @stat = nil unless File.file?(filename)
-        return @stat = File.stat(filename)
-      end
-
-      def touch_dir
-        dir = File.dirname(filename)
-        return if File.directory?(dir)
-        FileUtils.mkdir dir
-      end
-
-    end
-
     private
 
     attr_accessor :name
 
-    def_delegators CartonDb::Escaping,
-      :escape,
-      :unescape
-
     def replace_entry_in_file(data_file, key_d, content)
-      new_data_file = ListMapDb::DataFile.new("#{data_file.filename}.new")
+      new_data_file = ListMapDb::Segment.new("#{data_file.filename}.new")
       new_data_file.open_overwrite do |nf_io|
         each_datum_pair_in_file data_file do |kd, _, line|
           nf_io.print line unless kd == key_d
@@ -350,7 +295,7 @@ module CartonDb
 
     def data_file_containing(key)
       filename = file_path_for(key)
-      ListMapDb::DataFile.new(filename)
+      ListMapDb::Segment.new(filename)
     end
 
     def file_path_for(key)
@@ -361,19 +306,11 @@ module CartonDb
     end
 
     def each_datum_pair_in_file(data_file)
-      each_file_line data_file do |line|
+      data_file.each_line do |line|
         esc_key, esc_element = line.strip.split("\t", 2)
         key_d = CartonDb::Datum.new(escaped: esc_key)
         element_d = CartonDb::Datum.new(escaped: esc_element)
         yield key_d, element_d, line
-      end
-    end
-
-    def each_file_line(data_file)
-      data_file.open_read do |io|
-        io.each_line do |line|
-          yield line
-        end
       end
     end
 
@@ -398,7 +335,7 @@ module CartonDb
       Dir.entries(dir).each do |e|
         next unless e =~ /^\d{1,3}[.]txt$/
         filename = File.join(dir, e)
-        yield ListMapDb::DataFile.new( filename )
+        yield ListMapDb::Segment.new( filename )
       end
     end
 
