@@ -6,11 +6,17 @@ module CartonDb
 
     class Segment
 
-      attr_accessor :filename
-      private       :filename=
+      attr_accessor :db_name,  :chunk_dirname,  :segment_filename
+      private       :db_name=, :chunk_dirname=, :segment_filename=
 
-      def initialize(filename)
-        self.filename = filename
+      def initialize(db_name, chunk_dirname, segment_filename)
+        self.db_name = db_name
+        self.chunk_dirname = chunk_dirname
+        self.segment_filename = segment_filename
+      end
+
+      def filename
+        File.join(db_name, chunk_dirname, segment_filename)
       end
 
       def content?
