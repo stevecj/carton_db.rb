@@ -72,7 +72,7 @@ module CartonDb
       return nil if data_file.empty?
 
       ary = nil
-      each_datum_pair_in_file data_file do |kd, ed|
+      data_file.each_entry_element_line do |kd, ed, _line|
         next ary unless kd == key_d
         ary ||= []
         ary << ed.plain unless ed.placeholder?
@@ -85,7 +85,7 @@ module CartonDb
       data_file = data_file_containing(key_d.plain)
       return false if data_file.empty?
 
-      each_datum_pair_in_file data_file do |kd, _|
+      data_file.each_entry_element_line do |kd, _ed, _line|
         return true if kd = key_d
       end
       false
@@ -115,7 +115,7 @@ module CartonDb
       each_data_file do |data_file|
         next if data_file.empty?
         file_key_datum_set.clear
-        each_datum_pair_in_file data_file do |kd, _|
+        data_file.each_entry_element_line do |kd, _ed, _line|
           file_key_datum_set << kd
         end
         key_count += file_key_datum_set.length
@@ -147,7 +147,7 @@ module CartonDb
       data_file = data_file_containing(key_d.plain)
 
       if optimization == :small && data_file.content?
-        each_datum_pair_in_file data_file do |kd, _|
+        data_file.each_entry_element_line do |kd, _ed, _line|
           return if kd == key_d
         end
       end
@@ -180,7 +180,7 @@ module CartonDb
       each_data_file do |data_file|
         next if data_file.empty?
         key_arrays_slice.clear
-        each_datum_pair_in_file data_file do |kd, ed|
+        data_file.each_entry_element_line do |kd, ed, _line|
           array = key_arrays_slice[kd] ||= []
           array << ed.plain unless ed.placeholder?
         end
@@ -205,7 +205,7 @@ module CartonDb
 
       new_data_file = ListMapDb::Segment.new("#{data_file.filename}.new")
       new_data_file.open_overwrite do |io|
-        each_datum_pair_in_file data_file do |kd, _, line|
+        data_file.each_entry_element_line do |kd, _ed, line|
           io << line unless kd == key_d
         end
       end
@@ -239,11 +239,11 @@ module CartonDb
     # entry. If the entry does not already exist, then one is
     # created with the given list as its content.
     #
-    # Appending an empty collection is equivalent to invoking
-    # `db.touch key, optimization: :small`.
+    # Appending an empty or nil collection is equivalent to
+    # invoking `db.touch key, optimization: :small`.
     #
     # When appending a non-empty collection, this is a fast
-    # operation since it only append text to an existing file.
+    # operation since it only appends text to an existing file.
     #
     # @param key [String] The key identifying the entry.
     # @param elements [Array<String>] An array or other
@@ -251,20 +251,29 @@ module CartonDb
     def concat_elements(key, elements)
       if empty_collection?(elements)
         touch key, optimization: :small
-        return
+      else
+        concat_any_elements key, elements
       end
+    end
 
+    # Appends any number of element strings to the content of an
+    # entry. If the given elements collection is empty or nil,
+    # then the database is unchanged, and a new entry is not
+    # created if one did not exist previously.
+    #
+    # This is a fast operation since it only appends text to an
+    # existing file.
+    #
+    # @param key [String] The key identifying the entry.
+    # @param elements [Array<String>] An array or other
+    #   enumerable collection of elements to append.
+    def concat_any_elements(key, elements)
       key_d = CartonDb::Datum.new(plain: key)
       data_file = data_file_containing(key_d.plain)
       data_file.open_append do |io|
-        element_count = 0
         elements.each do |element|
           element_d = CartonDb::Datum.new(plain: element)
-          element_count += 1
           io<< "#{key_d.escaped}\t#{element_d.escaped}\n"
-        end
-        if element_count.zero?
-          io.puts key_d.escaped
         end
       end
     end
@@ -276,7 +285,7 @@ module CartonDb
     def replace_entry_in_file(data_file, key_d, content)
       new_data_file = ListMapDb::Segment.new("#{data_file.filename}.new")
       new_data_file.open_overwrite do |nf_io|
-        each_datum_pair_in_file data_file do |kd, _, line|
+        data_file.each_entry_element_line do |kd, _ed, line|
           nf_io.print line unless kd == key_d
         end
         element_count = 0
@@ -305,15 +314,6 @@ module CartonDb
       File.join(name, subdir, filename)
     end
 
-    def each_datum_pair_in_file(data_file)
-      data_file.each_line do |line|
-        esc_key, esc_element = line.strip.split("\t", 2)
-        key_d = CartonDb::Datum.new(escaped: esc_key)
-        element_d = CartonDb::Datum.new(escaped: esc_element)
-        yield key_d, element_d, line
-      end
-    end
-
     def each_data_file
       each_subdir do |subdir|
         each_data_file_in subdir do |data_file|
@@ -340,7 +340,9 @@ module CartonDb
     end
 
     def empty_collection?(collection)
-      ! collection.any? { true }
+      return true if collection.nil?
+      occupied = collection.any? { true }
+      ! occupied
     end
 
   end

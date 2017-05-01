@@ -21,11 +21,12 @@ module CartonDb
         ! content?
       end
 
-      def each_line
-        open_read do |io|
-          io.each_line do |line|
-            yield line
-          end
+      def each_entry_element_line
+        each_line do |line|
+          esc_key, esc_element = line.strip.split("\t", 2)
+          key_d = CartonDb::Datum.new(escaped: esc_key)
+          element_d = CartonDb::Datum.new(escaped: esc_element)
+          yield key_d, element_d, line
         end
       end
 
@@ -61,6 +62,14 @@ module CartonDb
         dir = File.dirname(filename)
         return if File.directory?(dir)
         FileUtils.mkdir dir
+      end
+
+      def each_line
+        open_read do |io|
+          io.each_line do |line|
+            yield line
+          end
+        end
       end
 
     end

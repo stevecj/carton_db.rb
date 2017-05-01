@@ -70,13 +70,23 @@ RSpec.describe CartonDb::ListMapDb do
     expect( subject['the key'] ).to eq( ['first element'] )
   end
 
-  it "creates an empty entry when concatenating an empty collection to a non-existent entry" do
+  it "creates an empty entry when concatenating an empty collection to a non-existent entry using concat_elements" do
     subject.concat_elements('the key', [])
     expect( subject['the key'] ).to eq( [] )
   end
 
-  it "creates a populated entry when concatenating a populated collection to a non-existent entry" do
+  it "creates a populated entry when concatenating a populated collection to a non-existent entry using concat_elements" do
     subject.concat_elements('the key', ['element a', 'element b'])
+    expect( subject['the key'] ).to eq( ['element a', 'element b'] )
+  end
+
+  it "doesn't create an entry when concatenating an empty collection to a non-existent entry using concat_any_elements" do
+    subject.concat_any_elements('the key', [])
+    expect( subject['the key'] ).to be_nil
+  end
+
+  it "creates a populated entry when concatenating a populated collection to a non-existent entry using concat_any_elements" do
+    subject.concat_any_elements('the key', ['element a', 'element b'])
     expect( subject['the key'] ).to eq( ['element a', 'element b'] )
   end
 
