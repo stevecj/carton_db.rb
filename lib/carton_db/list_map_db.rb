@@ -1,8 +1,8 @@
 # -*- coding: UTF-8 -*-
 require 'forwardable'
 require 'fileutils'
-require 'digest'
 require 'carton_db/list_map_db/segment'
+require 'carton_db/list_map_db/segment_group'
 
 module CartonDb
 
@@ -49,7 +49,7 @@ module CartonDb
     #   values to be stored.
     def []=(key, content)
       key_d = CartonDb::Datum.for_plain(key)
-      segment = segment_containing(key_d.plain)
+      segment = segment_containing(key_d)
       if segment.empty?
         concat_elements key_d.plain, content
       else
@@ -68,8 +68,7 @@ module CartonDb
     # @return [nil] if no matching entry exists.
     def [](key)
       key_d = CartonDb::Datum.for_plain(key)
-      segment = segment_containing(key_d.plain)
-      return nil if segment.empty?
+      segment = segment_containing(key_d)
 
       ary = nil
       segment.each_entry_element_line do |kd, ed, _line|
@@ -82,8 +81,7 @@ module CartonDb
 
     def key?(key)
       key_d = CartonDb::Datum.for_plain(key)
-      segment = segment_containing(key_d.plain)
-      return false if segment.empty?
+      segment = segment_containing(key_d)
 
       segment.each_entry_element_line do |kd, _ed, _line|
         return true if kd = key_d
@@ -97,7 +95,7 @@ module CartonDb
     #
     # @return [Boolean]
     def empty?
-      each_segment do |segment|
+      ListMapDb::Segment.each_in_db name do |segment|
         return false unless segment.empty?
       end
       true
@@ -112,7 +110,7 @@ module CartonDb
     def count
       key_count = 0
       file_key_datum_set = Set.new
-      each_segment do |segment|
+      ListMapDb::Segment.each_in_db name do |segment|
         next if segment.empty?
         file_key_datum_set.clear
         segment.each_entry_element_line do |kd, _ed, _line|
@@ -144,7 +142,7 @@ module CartonDb
       end
 
       key_d = CartonDb::Datum.for_plain(key)
-      segment = segment_containing(key_d.plain)
+      segment = segment_containing(key_d)
 
       if optimization == :small && segment.content?
         segment.each_entry_element_line do |kd, _ed, _line|
@@ -162,8 +160,7 @@ module CartonDb
     # This operation can be somewhat slow for a large database.
     #
     def clear
-      subdirs = to_enum(:each_subdir).to_a
-      FileUtils.rm_rf subdirs
+      ListMapDb::Segment.clear_all_in_db name
     end
 
     # Yields each entry in the database as a key/array pair.
@@ -177,15 +174,9 @@ module CartonDb
     #   entry's content.
     def each
       key_arrays_slice = {}
-      each_segment do |segment|
-        next if segment.empty?
-        key_arrays_slice.clear
-        segment.each_entry_element_line do |kd, ed, _line|
-          array = key_arrays_slice[kd] ||= []
-          array << ed.plain unless ed.placeholder?
-        end
-        key_arrays_slice.each do |kd, array|
-          yield kd.plain, array
+      ListMapDb::Segment.each_in_db name do |segment|
+        segment.each_entry do |key, content|
+          yield key, content
         end
       end
     end
@@ -200,11 +191,11 @@ module CartonDb
     #   deleted.
     def delete(key)
       key_d = CartonDb::Datum.for_plain(key)
-      segment = segment_containing(key_d.plain)
+      segment = segment_containing(key_d)
       return if segment.empty?
 
       new_segment = ListMapDb::Segment.new(
-        name, segment.chunk_dirname, "#{segment.segment_filename}.new")
+        segment.segment_group, "#{segment.segment_filename}.new")
       new_segment.open_overwrite do |io|
         segment.each_entry_element_line do |kd, _ed, line|
           io << line unless kd == key_d
@@ -229,7 +220,7 @@ module CartonDb
     def append_element(key, element)
       key_d = CartonDb::Datum.for_plain(key)
       element_d = CartonDb::Datum.for_plain(element)
-      segment = segment_containing(key_d.plain)
+      segment = segment_containing(key_d)
       FileUtils.mkpath File.dirname(segment.filename)
       segment.open_append do |io|
         io << "#{key_d.escaped}\t#{element_d.escaped}\n"
@@ -270,7 +261,7 @@ module CartonDb
     #   enumerable collection of elements to append.
     def concat_any_elements(key, elements)
       key_d = CartonDb::Datum.for_plain(key)
-      segment = segment_containing(key_d.plain)
+      segment = segment_containing(key_d)
       segment.open_append do |io|
         elements.each do |element|
           element_d = CartonDb::Datum.for_plain(element)
@@ -285,7 +276,7 @@ module CartonDb
 
     def replace_entry_in_file(segment, key_d, content)
       new_segment = ListMapDb::Segment.new(
-        name, segment.chunk_dirname, "#{segment.segment_filename}.new")
+        segment.segment_group, "#{segment.segment_filename}.new")
       new_segment.open_overwrite do |nf_io|
         segment.each_entry_element_line do |kd, _ed, line|
           nf_io.print line unless kd == key_d
@@ -305,36 +296,9 @@ module CartonDb
     end
 
     def segment_containing(key)
-      hex_hashcode = Digest::MD5.hexdigest(key)[0..3]
-      chunk_dirname = "#{hex_hashcode[0..1].to_i(16) % 128}"
-      segment_filename = "#{hex_hashcode[2..3].to_i(16) % 128}.txt"
-      ListMapDb::Segment.new(name, chunk_dirname, segment_filename)
-    end
-
-    def each_segment
-      each_subdir do |subdir|
-        each_segment_in subdir do |segment|
-          yield segment
-        end
-      end
-    end
-
-    def each_subdir
-      Dir.entries(name).each do |e|
-        next unless e =~ /^\d{1,3}$/
-        subdir = File.join(name, e)
-        next unless File.directory?(subdir)
-        yield subdir
-      end
-    end
-
-    def each_segment_in(dir)
-      Dir.entries(dir).each do |e|
-        next unless e =~ /^\d{1,3}[.]txt$/
-        filename = File.join(dir, e)
-        yield ListMapDb::Segment.new(
-        name, File.basename(File.dirname(filename)), File.basename(filename))
-      end
+      ListMapDb::Segment.in_db_for_hashcode(
+        name, key.storage_hashcode
+      )
     end
 
     def empty_collection?(collection)

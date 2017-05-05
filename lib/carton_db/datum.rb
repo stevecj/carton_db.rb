@@ -1,3 +1,5 @@
+require 'digest'
+
 module CartonDb
 
   module Datum
@@ -33,6 +35,11 @@ module CartonDb
 
       def placeholder?
         raise NotImplementedError, "Subclass responsibility."
+      end
+
+      def storage_hashcode
+        return nil if placeholder?
+        @storage_hashcode ||= Digest::MD5.digest(plain)
       end
 
       def eql?(other)
