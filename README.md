@@ -4,7 +4,7 @@ A pure Ruby key/value data storage system where the values may
 consist of simple data structures.
 
 The primary goals of this library are simplicity of implementation
-and reliable, predicatble behavior when used as intended, along
+and reliable, predictable behavior when used as intended, along
 with documentation making it reasonably clear what is intended.
 
 ## Uses
@@ -53,10 +53,13 @@ filesystem containing the files that store the data.
 
 A database is accessed through an instance of a database class.
 
-An instance of a database class maintains no state in memory
+An instance of a database class maintains no internal state
 between calls to its methods except for the database name and the
 expectation of a directory with that name existing in the
 filesystem.
+
+Only instances of classes maintain any internal state. No global
+internal state is maintained.
 
 An empty directory is a valid empty database.
 
@@ -68,17 +71,17 @@ attempting to do that are unpredictable.
 
 Initializing a new database class instance creates its directory
 in the filesystem if it does not already exist. The parent of the
-database directory is expected to already  exist, and an
-exception will be raised if it doesn't.
+database directory is expected to already exist, and an exception
+will be raised if it doesn't.
 
 The database structure is designed to effectively handle up to
 several million elements with entries containing up to 1 or 2
 thousand elements each.
 
-The speed of database operations is relatively good, but this is
-not a high performance database management system. See the
-code documentation in the classes for more details about the
-performance of particular database operations.
+The speed of database operations is good, but this is not a high
+performance database management system. See the code
+documentation in the classes for more details about the
+performance of each kind of database operation.
 
 ## Usage
 
