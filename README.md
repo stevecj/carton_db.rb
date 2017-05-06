@@ -54,7 +54,9 @@ filesystem containing the files that store the data.
 A database is accessed through an instance of a database class.
 
 An instance of a database class maintains no state in memory
-between calls to its methods except for the database name.
+between calls to its methods except for the database name and the
+expectation of a directory with that name existing in the
+filesystem.
 
 An empty directory is a valid empty database.
 
@@ -66,8 +68,8 @@ attempting to do that are unpredictable.
 
 Initializing a new database class instance creates its directory
 in the filesystem if it does not already exist. The parent of the
-database directory is expected to already  exist, and an error
-will occur if it doesn't.
+database directory is expected to already  exist, and an
+exception will be raised if it doesn't.
 
 The database structure is designed to effectively handle up to
 several million elements with entries containing up to 1 or 2

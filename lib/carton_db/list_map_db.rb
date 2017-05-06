@@ -87,6 +87,13 @@ module CartonDb
       ary
     end
 
+    # Returns true if an entry with the given key exists.
+    #
+    # Performance is similar to #[] but may be somewhat faster
+    # when a key is found since it doesn't need to ensure that
+    # it has read all of the elements for an entry.
+    #
+    # @param key [String] The key identifying the entry.
     def key?(key)
       key_d = CartonDb::Datum.for_plain(key)
       segment = segment_containing(key_d)
@@ -97,6 +104,14 @@ module CartonDb
       false
     end
 
+    # Returns trus if an entry with the given key exists and its
+    # content includes at least one element with the given
+    # element value.
+    #
+    # Performance is similar to #key?
+    #
+    # @param key [String] The key identifying the entry.
+    # @param element [String] The element value to match.
     def element?(key, element)
       key_d = CartonDb::Datum.for_plain(key)
       element_d = CartonDb::Datum.for_plain(element)
