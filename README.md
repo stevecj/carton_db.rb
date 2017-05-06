@@ -75,8 +75,8 @@ database directory is expected to already exist, and an exception
 will be raised if it doesn't.
 
 The database structure is designed to effectively handle up to
-several million elements with entries containing up to 1 or 2
-thousand elements each.
+several million elements with any entry containing up to around
+50 thousand characters (elements ⨉ chars in an entry's content).
 
 The speed of database operations is good, but this is not a high
 performance database management system. See the code
