@@ -21,13 +21,14 @@ for a relational database server, and I didn't want to add one
 just for this requirement. A redis db with sufficient capacity
 would have been expensive, and solutions such as SQLite are
 specifically not supported by Heroku so people don't mistakenly
-expect the data to be preserved. Ruby's `DBM` and `SDMB` proved
-to be too unpredicatable and flakey to be practical solutions.
+expect the data to be preserved. Ruby's `PStore`, `DBM` and
+`SDMB` each proved to be too unpredicatable and flakey to be
+practical solutions.
 
 Although this tool was initially developed to store transient
 data for use within a single process invocation and then
-discarded, it is also quite well suited for long term data
-storage on a system that preserves filesystem data over time.
+discarded, it is also well suited for long term data storage on a
+system that retains filesystem contents.
 
 ## Installation
 
