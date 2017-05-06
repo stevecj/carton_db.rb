@@ -27,6 +27,14 @@ module CartonDb
     # The directory for the database will be created if it does
     # not already exist.
     #
+    # The parent directory is assumed to already exist, and an
+    # exception will be raised if it does not.
+    #
+    # Other instance methods assume that the directory exists but
+    # make no other assumptions about the state of the persisted
+    # data, and an empty directory is a valid representation of
+    # an empty database.
+    #
     # This is a very fast operation.
     #
     # @param name [String] The full path of the directory in the
@@ -89,7 +97,7 @@ module CartonDb
       false
     end
 
-    def entry_element?(key, element)
+    def element?(key, element)
       key_d = CartonDb::Datum.for_plain(key)
       element_d = CartonDb::Datum.for_plain(element)
       segment = segment_containing(key_d)
@@ -279,6 +287,43 @@ module CartonDb
           io<< "#{key_d.escaped}\t#{element_d.escaped}\n"
         end
       end
+    end
+
+    # Appends an element to the content of an entry if no
+    # element with the same value already exists in the content.
+    #
+    # @param key [String] The key identifying the entry.
+    # @param element [String] The element to be appended to the
+    #   content of the entry if applicable.
+    def touch_element(key, element)
+      key_d = CartonDb::Datum.for_plain(key)
+      element_d = CartonDb::Datum.for_plain(element)
+      return if element?(key_d, element_d)
+      append_element key_d, element_d
+    end
+
+    # Performs a bag-wise merge of the given elements with the
+    # content of an entry. Appends whatever elements are
+    # necessary so the content has an element corresponding to
+    # each of the given elements.
+    #
+    # @param key [String] The key identifying the entry.
+    # @param elements [Array<String>] An array or other
+    #   enumerable collection of elements to appended as
+    #   applicable.
+    def merge_elements(key, elements)
+      key_d = CartonDb::Datum.for_plain(key)
+      element_ds = elements.map { |el|
+        CartonDb::Datum.for_plain(el)
+      }
+      segment = segment_containing(key_d)
+      segment.each_entry_element_line do |kd, ed, _line|
+        next unless kd == key_d
+        eds_idx = element_ds.index(ed)
+        element_ds.delete_at(eds_idx) if eds_idx
+      end
+
+      concat_elements key_d, element_ds
     end
 
     private

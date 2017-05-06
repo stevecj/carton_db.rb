@@ -5,6 +5,7 @@ module CartonDb
   module Datum
 
     def self.for_plain(plain_text, auto_placeholder: false)
+      return plain_text if plain_text.is_a?(Datum::Base)
       if auto_placeholder && plain_text.nil?
         Datum::Placeholder
       else
@@ -13,6 +14,7 @@ module CartonDb
     end
 
     def self.for_escaped(escaped_text, auto_placeholder: false)
+      return escaped_text if escaped_text.is_a?(Datum::Base)
       if auto_placeholder && escaped_text.nil?
         Datum::Placeholder
       else

@@ -90,17 +90,73 @@ RSpec.describe CartonDb::ListMapDb do
     expect( subject['the key'] ).to eq( ['element a', 'element b'] )
   end
 
+
+  it "creates a populated entry when an element of a non-existent entry is touched" do
+    subject.touch_element 'the key', 'the element'
+    expect( subject['the key'] ).to eq( ['the element'] )
+  end
+
+  it "appends an element when a non-existent entry element is touched" do
+    subject['the key'] = ['element a', 'element b']
+    subject.touch_element 'the key', 'element c'
+    expect( subject['the key'] ).
+      to eq( ['element a', 'element b', 'element c'] )
+  end
+
+  it "has no effect when a an existing entry element is touched" do
+    subject['the key'] = ['element a', 'element b']
+    subject.touch_element 'the key', 'element b'
+    expect( subject['the key'] ).to eq( ['element a', 'element b'] )
+  end
+
+
+  it "creates an empty entry when an empty elements collection is merged to a non-existent entry" do
+    subject.merge_elements 'the key', []
+    expect( subject['the key'] ).to eq( [] )
+  end
+
+  it "has no effect when an empty elements collection is merged to an existing entry" do
+    subject['the key'] = ['element a', 'element b']
+    subject.merge_elements 'the key', []
+    expect( subject['the key'] ).to eq( ['element a', 'element b'] )
+  end
+
+  it "creates a populated entry when elements are merged to an non-existent entry" do
+    subject.merge_elements 'the key', ['element a', 'element b']
+    expect( subject['the key'] ).to eq( ['element a', 'element b'] )
+  end
+
+  it "concatenates to an entry when new elements are merged to an existing entry" do
+    subject['the key'] = ['a']
+    subject.merge_elements 'the key', ['b', 'b', 'c']
+    expect( subject['the key'] ).
+      to eq( ['a', 'b', 'b', 'c'] )
+  end
+
+  it "has no effect when merging existing elements to an entry" do
+    subject['the key'] = ['a', 'b', 'b', 'c']
+    subject.merge_elements 'the key', ['b', 'b', 'c']
+    expect( subject['the key'] ).to eq( ['a', 'b', 'b', 'c'] )
+  end
+
+  it "appends additional elements when merging to an entry" do
+    subject['the key'] = ['a', 'b', 'b', 'c']
+    subject.merge_elements 'the key', ['b', 'b', 'b', 'c', 'd']
+    expect( subject['the key'] ).to eq( ['a', 'b', 'b', 'c', 'b', 'd'] )
+  end
+
+
   it "recognizes the non-existence of an entry element with a given value" do
     subject['some key'] = ['element a', 'element b']
-    expect( subject.entry_element?('another key', 'element a') ).
+    expect( subject.element?('another key', 'element a') ).
       to eq( false )
-    expect( subject.entry_element?('some key', 'element c') ).
+    expect( subject.element?('some key', 'element c') ).
       to eq( false )
   end
 
   it "recognizes the existence of an entry element with a given value" do
     subject['some key'] = ['element a', 'element b']
-    expect( subject.entry_element?('some key', 'element b') ).
+    expect( subject.element?('some key', 'element b') ).
       to eq( true )
   end
 
