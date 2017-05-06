@@ -12,20 +12,22 @@ with documentation making it reasonably clear what is intended.
 Uses for this gem seem pretty limited, but you might have a
 purpose for it that the author has not thought about.
 
-This s a formalization of code that was written to solve the
-specific problem of building a map of arrays in a Ruby program
-that is too big for Ruby to effectively handle in RAM and to
-solve it in a way that makes sense in an application with no
-existing reason for a database server, using facilities available
-on Heroku. Heroku does not support SQLite since folks would
-mistakenly expect it to retain data that was written to it
-between process instances, and Ruby's `DBM` and `SDMB` proved to
-be too unpredicatable and flakey to be practical solutions.
+This is a formalization of a solution that was created to solve
+a specific problem. The problem was adding a feature to a
+Ruby program running on Heroku to collect data into a map of
+sets of elements that would be too large to be effectively
+handled in memory. The application didn't already have any use
+for a relational database server, and I didn't want to add one
+just for this requirement. A redis db with sufficient capacity
+would have been expensive, and solutions such as SQLite are
+specifically not supported by Heroku so people don't mistakenly
+expect the data to be preserved. Ruby's `DBM` and `SDMB` proved
+to be too unpredicatable and flakey to be practical solutions.
 
-Although this tool was initially developed to store transient data
-to be used within a single process invocation and then discarded,
-it is also well suited for long term data storage on a system that
-preserves filesystem data over time.
+Although this tool was initially developed to store transient
+data for use within a single process invocation and then
+discarded, it is also quite well suited for long term data
+storage on a system that preserves filesystem data over time.
 
 ## Installation
 
@@ -51,7 +53,7 @@ filesystem containing the files that store the data.
 A database is accessed through an instance of a database class.
 
 An instance of a database class maintains no state in memory
-between calls to its methods except the database name.
+between calls to its methods except for the database name.
 
 An empty directory is a valid empty database.
 
@@ -63,8 +65,8 @@ attempting to do that are unpredictable.
 
 Initializing a new database class instance creates its directory
 in the filesystem if it does not already exist. The parent of the
-database directory is expected to exist, and an error will occur
-if it doesn't
+database directory is expected to already  exist, and an error
+will occur if it doesn't.
 
 The database structure is designed to effectively handle up to
 several million elements with entries containing up to 1 or 2
@@ -72,7 +74,7 @@ thousand elements each.
 
 The speed of database operations is relatively good, but this is
 not a high performance database management system. See the
-documentation for the classes for more details about the
+code documentation in the classes for more details about the
 performance of particular database operations.
 
 ## Usage
@@ -80,10 +82,11 @@ performance of particular database operations.
 Currently, this gem includes only one kind of database, which is
 implemented by the `CartonDB::ListMapDb` class. It is a map of
 lists where each entry has a string for a key and a list of of 0
-or more string elements for a value.
+or more string elements as content.
 
-The name of the database is the path of a directory that exists
-or shall be created in the filesystem to contain the data files.
+The name of the database is the path of a directory in the
+filesystem that either already exists or shall be created as
+a container for the stored data.
 
 Example:
 
