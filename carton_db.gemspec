@@ -11,7 +11,7 @@ Gem::Specification.new do |spec|
 
   spec.summary       = "A pure Ruby key/value data storage system where the" \
                       " values may consist of simple data structures."
-  spec.homepage      = "https://github.com/stevecj/carton_db.js"
+  spec.homepage      = "https://github.com/stevecj/carton_db.rb"
   spec.license       = "MIT"
 
   spec.files         = `git ls-files -z`.split("\x0").reject do |f|
