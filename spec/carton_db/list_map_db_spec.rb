@@ -76,18 +76,32 @@ RSpec.describe CartonDb::ListMapDb do
   end
 
   it "creates a populated entry when concatenating a populated collection to a non-existent entry using concat_elements" do
-    subject.concat_elements('the key', ['element a', 'element b'])
+    subject.concat_elements 'the key', ['element a', 'element b']
     expect( subject['the key'] ).to eq( ['element a', 'element b'] )
   end
 
   it "doesn't create an entry when concatenating an empty collection to a non-existent entry using concat_any_elements" do
-    subject.concat_any_elements('the key', [])
+    subject.concat_any_elements 'the key', []
     expect( subject['the key'] ).to be_nil
   end
 
   it "creates a populated entry when concatenating a populated collection to a non-existent entry using concat_any_elements" do
-    subject.concat_any_elements('the key', ['element a', 'element b'])
+    subject.concat_any_elements 'the key', ['element a', 'element b']
     expect( subject['the key'] ).to eq( ['element a', 'element b'] )
+  end
+
+  it "recognizes the non-existence of an entry element with a given value" do
+    subject['some key'] = ['element a', 'element b']
+    expect( subject.entry_element?('another key', 'element a') ).
+      to eq( false )
+    expect( subject.entry_element?('some key', 'element c') ).
+      to eq( false )
+  end
+
+  it "recognizes the existence of an entry element with a given value" do
+    subject['some key'] = ['element a', 'element b']
+    expect( subject.entry_element?('some key', 'element b') ).
+      to eq( true )
   end
 
   it "can contain many distinct entries", slow: true do

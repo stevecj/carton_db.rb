@@ -89,6 +89,17 @@ module CartonDb
       false
     end
 
+    def entry_element?(key, element)
+      key_d = CartonDb::Datum.for_plain(key)
+      element_d = CartonDb::Datum.for_plain(element)
+      segment = segment_containing(key_d)
+
+      segment.each_entry_element_line do |kd, ed, _line|
+        return true if kd == key_d && ed == element_d
+      end
+      false
+    end
+
     # Returns true if the map has no entries.
     #
     # This is a fairly fast operation.
