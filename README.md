@@ -18,12 +18,12 @@ Ruby program running on Heroku to collect data into a map of
 sets of elements that would be too large to be effectively
 handled in memory. The application didn't already have any use
 for a relational database server, and I didn't want to add one
-just for this requirement. A redis db with sufficient capacity
+just for this requirement. A Redis db with sufficient capacity
 would have been expensive, and solutions such as SQLite are
 specifically not supported by Heroku so people don't mistakenly
 expect the data to be preserved. Ruby's `PStore`, `DBM` and
-`SDMB` each proved to be too unpredicatable and flakey to be
-practical solutions.
+`SDMB` each proved to be too unpredicatable and flakey to be a
+practical solution.
 
 Although this tool was initially developed to store transient
 data for use within a single process invocation and then
