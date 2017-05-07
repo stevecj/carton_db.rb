@@ -85,10 +85,11 @@ performance of each kind of database operation.
 
 ## Usage
 
-Currently, this gem includes only one kind of database, which is
-implemented by the `CartonDB::ListMapDb` class. It is a map of
-lists where each entry has a string for a key and a list of of 0
-or more string elements as content.
+The primary kind of database provided by this gem is the one
+implemented by `CartonDB::ListMapDb`. It is a map of lists where
+each entry has a string for a key and a list of of 0 or more
+string elements as content. Other kinds of database are
+implemented on top of that and share the same storage format.
 
 The name of the database is the path of a directory in the
 filesystem that either already exists or shall be created as

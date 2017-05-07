@@ -43,6 +43,15 @@ RSpec.describe CartonDb::ListMapDb do
     expect( subject['the key'] ).to eq( ['element a', 'element b'] )
   end
 
+  it "is empty when no entries have been added" do
+    expect( subject ).to be_empty
+  end
+
+  it "is not empty when an entry has been added" do
+    subject['the key'] = ['an element']
+    expect( subject ).not_to be_empty
+  end
+
   it "overwrites an existing entry by value assignment" do
     subject['the key'] = ['element a', 'element b']
 
@@ -108,7 +117,6 @@ RSpec.describe CartonDb::ListMapDb do
     subject.touch_element 'the key', 'element b'
     expect( subject['the key'] ).to eq( ['element a', 'element b'] )
   end
-
 
   it "creates an empty entry when an empty elements collection is merged to a non-existent entry" do
     subject.merge_elements 'the key', []
@@ -269,6 +277,20 @@ RSpec.describe CartonDb::ListMapDb do
       [ 'key a', ['entry a1'] ],
       [ 'key b', ['entry b1', 'entry b2'] ],
       [ 'key c', [] ],
+    )
+  end
+
+  it "enumerates its entry first elements" do
+    subject['key a'] = ['entry a1']
+    subject['key b'] = ['entry b1', 'entry b2']
+    subject['key c'] = []
+
+    entries = subject.to_enum(:each_first_element).to_a
+
+    expect( entries ).to contain_exactly(
+      [ 'key a', 'entry a1' ],
+      [ 'key b', 'entry b1' ],
+      [ 'key c', nil ],
     )
   end
 

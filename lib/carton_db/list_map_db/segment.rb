@@ -71,6 +71,18 @@ module CartonDb
         end
       end
 
+      def each_first_element
+        first_entries = nil
+        each_entry_element_line do |key_d, elem_d, _line|
+          first_entries ||= {}
+          first_entries[key_d] ||= elem_d.plain
+        end
+        return unless first_entries
+        first_entries.each do |key_d, element|
+          yield key_d.plain, element
+        end
+      end
+
       def each_entry_element_line
         return if empty?
         each_line do |line|

@@ -6,7 +6,7 @@ require 'carton_db/list_map_db/segment_group'
 
 module CartonDb
 
-  # A map with string keys lists of strings as contents.
+  # A map with strings as keys and lists of strings as contents.
   #
   # This is suitable for storing a total number of elements as
   # large as the low millions, with each entry containing a
@@ -211,6 +211,23 @@ module CartonDb
       ListMapDb::Segment.each_in_db name do |segment|
         segment.each_entry do |key, content|
           yield key, content
+        end
+      end
+    end
+
+    # For each entry in the database, yields the first element
+    # in the entry's content or nil if the content is an empty
+    # list.
+    #
+    # Performance is pretty much identical to that of #each.
+    #
+    # @yieldparam key [String] The key of the entry.
+    # @yeildparam array [String, nil] The first element of the
+    #   entry's content.
+    def each_first_element
+      ListMapDb::Segment.each_in_db name do |segment|
+        segment.each_first_element do |key, element|
+          yield key, element
         end
       end
     end
