@@ -339,9 +339,13 @@ module CartonDb
     # necessary so the content has an element corresponding to
     # each of the given elements.
     #
+    # Performance is similar to #[] when no new elements need to
+    # be added and similar to #[] followed by #concat_elements
+    # when one or more new elements needs to be added.
+    #
     # @param key [String] The key identifying the entry.
     # @param elements [Array<String>] An array or other
-    #   enumerable collection of elements to appended as
+    #   enumerable collection of elements to be appended as
     #   applicable.
     def merge_elements(key, elements)
       key_d = CartonDb::Datum.for_plain(key)

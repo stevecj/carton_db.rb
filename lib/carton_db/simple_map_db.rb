@@ -60,7 +60,7 @@ module CartonDb
     # See CartonDb::ListMapDb#empty?
     def_delegator :list_map_db, :empty?
 
-    # See CartonDb::ListMapDb#count
+    # see cartondb::listmapdb#count
     def_delegator :list_map_db, :count
 
     # See CartonDb::ListMapDb#Key?

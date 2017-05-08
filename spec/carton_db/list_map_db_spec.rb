@@ -153,7 +153,6 @@ RSpec.describe CartonDb::ListMapDb do
     expect( subject['the key'] ).to eq( ['a', 'b', 'b', 'c', 'b', 'd'] )
   end
 
-
   it "recognizes the non-existence of an entry element with a given value" do
     subject['some key'] = ['element a', 'element b']
     expect( subject.element?('another key', 'element a') ).
@@ -191,15 +190,6 @@ RSpec.describe CartonDb::ListMapDb do
       # test doesn't have to wait for it.
       destroy_workspace
     end
-  end
-
-  it "is initially empty" do
-    expect( subject ).to be_empty
-  end
-
-  it "is not empty after an entry has been created" do
-    subject.append_element('the key', 'first element')
-    expect( subject ).not_to be_empty
   end
 
   it "initially has a count of 0" do
@@ -249,8 +239,8 @@ RSpec.describe CartonDb::ListMapDb do
   end
 
   it "is empty and has a count of 0 after being cleared when it had entries" do
-    subject['key a'] = ['entry a1']
-    subject['key b'] = ['entry b1', 'entry b2']
+    subject['key a'] = ['element a1']
+    subject['key b'] = ['element b1', 'element b2']
 
     subject.clear
 
@@ -267,29 +257,29 @@ RSpec.describe CartonDb::ListMapDb do
   end
 
   it "enumerates its entries" do
-    subject['key a'] = ['entry a1']
-    subject['key b'] = ['entry b1', 'entry b2']
+    subject['key a'] = ['element a1']
+    subject['key b'] = ['element b1', 'element b2']
     subject['key c'] = []
 
     entries = subject.to_enum(:each).to_a
 
     expect( entries ).to contain_exactly(
-      [ 'key a', ['entry a1'] ],
-      [ 'key b', ['entry b1', 'entry b2'] ],
+      [ 'key a', ['element a1'] ],
+      [ 'key b', ['element b1', 'element b2'] ],
       [ 'key c', [] ],
     )
   end
 
   it "enumerates its entry first elements" do
-    subject['key a'] = ['entry a1']
-    subject['key b'] = ['entry b1', 'entry b2']
+    subject['key a'] = ['element a1']
+    subject['key b'] = ['element b1', 'element b2']
     subject['key c'] = []
 
     entries = subject.to_enum(:each_first_element).to_a
 
     expect( entries ).to contain_exactly(
-      [ 'key a', 'entry a1' ],
-      [ 'key b', 'entry b1' ],
+      [ 'key a', 'element a1' ],
+      [ 'key b', 'element b1' ],
       [ 'key c', nil ],
     )
   end
