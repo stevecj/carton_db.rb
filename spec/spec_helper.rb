@@ -2,6 +2,9 @@
 require "bundler/setup"
 require "carton_db"
 
+gem 'rspec-prof'
+require 'rspec-prof'
+
 SPEC_ROOT = File.dirname(__FILE__)
 PROJECT_ROOT = File.dirname(SPEC_ROOT)
 TEMP_DIR = File.join(PROJECT_ROOT, 'tmp')
