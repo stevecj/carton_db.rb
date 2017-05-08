@@ -1,4 +1,6 @@
 # -*- coding: UTF-8 -*-
+# frozen_string_literal: true
+
 require "carton_db/version"
 require "carton_db/escaping"
 require "carton_db/datum"

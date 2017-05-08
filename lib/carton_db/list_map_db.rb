@@ -1,4 +1,6 @@
 # -*- coding: UTF-8 -*-
+# frozen_string_literal: true
+
 require 'forwardable'
 require 'fileutils'
 require 'carton_db/list_map_db/segment'
