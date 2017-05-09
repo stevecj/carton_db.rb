@@ -8,20 +8,22 @@ module CartonDb
   module Datum
 
     def self.for_plain(plain_text, auto_placeholder: false)
-      return plain_text if plain_text.is_a?(Datum::Base)
-      if auto_placeholder && plain_text.nil?
+      if auto_placeholder && (! plain_text) && plain_text.nil?
         Datum::Placeholder
+      elsif plain_text.is_a?(Datum::Base)
+        plain_text
       else
-        Datum::ForPlain.new(plain_text)
+        Datum::ForPlain.new(plain_text.to_s)
       end
     end
 
     def self.for_escaped(escaped_text, auto_placeholder: false)
-      return escaped_text if escaped_text.is_a?(Datum::Base)
-      if auto_placeholder && escaped_text.nil?
+      if auto_placeholder && (! escaped_text) && escaped_text.nil?
         Datum::Placeholder
+      elsif escaped_text.is_a?(Datum::Base)
+        escaped_text
       else
-        Datum::ForEscaped.new(escaped_text)
+        Datum::ForEscaped.new(escaped_text.to_s)
       end
     end
 
@@ -61,8 +63,9 @@ module CartonDb
     class ForPlain < Datum::Base
       attr_reader :plain
 
+
       def initialize(plain)
-        if plain.nil?
+        if (! plain) && plain.nil?
           raise ArgumentError "A non-nil 'plain' value is required."
         end
         @plain = plain
@@ -93,7 +96,7 @@ module CartonDb
       attr_reader :escaped
 
       def initialize(escaped)
-        if escaped.nil?
+        if (! escaped) && escaped.nil?
           raise ArgumentError "A non-nil 'escaped' value is required."
         end
         @escaped = escaped
