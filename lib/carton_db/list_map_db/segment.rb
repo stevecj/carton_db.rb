@@ -2,6 +2,7 @@
 # frozen_string_literal: true
 
 require 'fileutils'
+require 'set'
 
 module CartonDb
   class ListMapDb
@@ -60,6 +61,55 @@ module CartonDb
         ! content?
       end
 
+      def key_count
+        return 0 if empty?
+        key_d_set.length
+      end
+
+      def touch_d(key_d, optimization)
+        if optimization == :small && content?
+          each_entry_element_line do |kd, _ed, _line|
+            return if kd == key_d
+          end
+        end
+
+        open_append do |io|
+          io << key_d.escaped << "\n"
+        end
+      end
+
+      def key_d_set
+        result = Set.new
+        each_entry_element_line do |kd, _ed, _line|
+          result << kd
+        end
+        result
+      end
+
+      def key_d?(key_d)
+        each_entry_element_line do |kd, _ed, _line|
+          return true if kd = key_d
+        end
+        false
+      end
+
+      def element_d?(key_d, element_d)
+        each_entry_element_line do |kd, ed, _line|
+          return true if kd == key_d && ed == element_d
+        end
+        false
+      end
+
+      def collect_content(key_d, collection_class)
+        result = nil
+        each_entry_element_line do |kd, ed, _line|
+          next unless kd == key_d
+          result ||= collection_class.new
+          result << ed.plain unless ed.placeholder?
+        end
+        result
+      end
+
       def each_entry
         entries = nil
         each_entry_element_line do |key_d, elem_d, _line|
@@ -70,6 +120,13 @@ module CartonDb
         return unless entries
         entries.each do |key_d, content|
           yield key_d.plain, content
+        end
+      end
+
+      def each_element_for_d(key_d)
+        each_entry_element_line do |kd, ed, _line|
+          next unless kd == key_d
+          yield ed
         end
       end
 
@@ -93,6 +150,41 @@ module CartonDb
           element_d = CartonDb::Datum.for_escaped(
             esc_element, auto_placeholder: true)
           yield key_d, element_d, line
+        end
+      end
+
+      def replace
+        replacement = self.class.new(
+          segment_group, "#{segment_filename}.txt"
+        )
+        begin
+          yield replacement
+        rescue StandardError
+          File.unlink replacement.filename
+          raise
+        end
+        File.unlink filename
+        File.rename replacement.filename, filename
+      end
+
+      def write_key_element_d(key_d, element_d)
+        open_append do |io|
+          io << "#{key_d.escaped}\t#{element_d.escaped}\n"
+        end
+      end
+
+      def write_key_d_elements(key_d, elements)
+        open_append do |io|
+          elements.each do |element|
+            element_d = CartonDb::Datum.for_plain(element)
+            io<< "#{key_d.escaped}\t#{element_d.escaped}\n"
+          end
+        end
+      end
+
+      def copy_entries_except(key_d, to_io)
+        each_entry_element_line do |kd, _ed, line|
+          to_io << line unless kd == key_d
         end
       end
 
