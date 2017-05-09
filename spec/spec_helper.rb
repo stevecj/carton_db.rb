@@ -2,8 +2,10 @@
 require "bundler/setup"
 require "carton_db"
 
-gem 'rspec-prof'
-require 'rspec-prof'
+if ENV['RSPEC_PROFILE']
+  gem 'rspec-prof'
+  require 'rspec-prof'
+end
 
 SPEC_ROOT = File.dirname(__FILE__)
 PROJECT_ROOT = File.dirname(SPEC_ROOT)
