@@ -67,11 +67,7 @@ module CartonDb
       end
 
       def touch_d(key_d, optimization)
-        if optimization == :small && content?
-          each_entry_element_line do |kd, _ed, _line|
-            return if kd == key_d
-          end
-        end
+        return if optimization == :small && key_d?(key_d)
 
         open_append do |io|
           io << key_d.escaped << "\n"
@@ -102,8 +98,7 @@ module CartonDb
 
       def collect_content(key_d, collection_class)
         result = nil
-        each_entry_element_line do |kd, ed, _line|
-          next unless kd == key_d
+        each_element_for_d key_d do |ed|
           result ||= collection_class.new
           result << ed.plain unless ed.placeholder?
         end
@@ -111,12 +106,7 @@ module CartonDb
       end
 
       def each_entry
-        entries = nil
-        each_entry_element_line do |key_d, elem_d, _line|
-          entries ||= {}
-          content = entries[key_d] ||= []
-          content << elem_d.plain unless elem_d.placeholder?
-        end
+        entries = key_d_contents_map
         return unless entries
         entries.each do |key_d, content|
           yield key_d.plain, content
@@ -131,13 +121,10 @@ module CartonDb
       end
 
       def each_first_element
-        first_entries = nil
-        each_entry_element_line do |key_d, elem_d, _line|
-          first_entries ||= {}
-          first_entries[key_d] ||= elem_d.plain
-        end
-        return unless first_entries
-        first_entries.each do |key_d, element|
+        first_element_map = key_d_first_element_map
+        return unless first_element_map
+
+        first_element_map.each do |key_d, element|
           yield key_d.plain, element
         end
       end
@@ -154,11 +141,12 @@ module CartonDb
       end
 
       def replace
-        replacement = self.class.new(
-          segment_group, "#{segment_filename}.txt"
-        )
+        repl_name = "#{segment_filename}.temp"
+        replacement = self.class.new(segment_group, repl_name)
         begin
-          yield replacement
+          replacement.open_overwrite do |io|
+            yield io
+          end
         rescue StandardError
           File.unlink replacement.filename
           raise
@@ -188,12 +176,7 @@ module CartonDb
         end
       end
 
-      def open_append
-        touch_dir
-        File.open filename, 'a', **FILE_ENCODING_OPTS do |io|
-          yield io
-        end
-      end
+      protected
 
       def open_overwrite
         touch_dir
@@ -216,6 +199,13 @@ module CartonDb
         end
       end
 
+      def open_append
+        touch_dir
+        File.open filename, 'a', **FILE_ENCODING_OPTS do |io|
+          yield io
+        end
+      end
+
       def touch_dir
         dir = File.dirname(filename)
         return if File.directory?(dir)
@@ -228,6 +218,25 @@ module CartonDb
             yield line
           end
         end
+      end
+
+      def key_d_contents_map
+        entries = nil
+        each_entry_element_line do |key_d, elem_d, _line|
+          entries ||= {}
+          content = entries[key_d] ||= []
+          content << elem_d.plain unless elem_d.placeholder?
+        end
+        entries
+      end
+
+      def key_d_first_element_map
+        result = nil
+        each_entry_element_line do |key_d, elem_d, _line|
+          result ||= {}
+          result[key_d] ||= elem_d.plain
+        end
+        return result
       end
 
     end

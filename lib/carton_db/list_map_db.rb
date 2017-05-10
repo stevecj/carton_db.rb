@@ -217,10 +217,8 @@ module CartonDb
       segment = segment_containing(key_d)
       return if segment.empty?
 
-      segment.replace do |replacement|
-        replacement.open_overwrite do |repl_io|
-          segment.copy_entries_except key_d, repl_io
-        end
+      segment.replace do |repl_io|
+        segment.copy_entries_except key_d, repl_io
       end
     end
 
@@ -325,13 +323,11 @@ module CartonDb
     attr_accessor :name
 
     def replace_entry_in_file(segment, key_d, content)
-      segment.replace do |replacement|
-        replacement.open_overwrite do |repl_io|
-          segment.copy_entries_except key_d, repl_io
-          element_count = 0
-          count = write_key_elements(key_d, content, repl_io)
-          repl_io << "#{key_d.escaped}\n" if count.zero?
-        end
+      segment.replace do |repl_io|
+        segment.copy_entries_except key_d, repl_io
+        element_count = 0
+        count = write_key_elements(key_d, content, repl_io)
+        repl_io << "#{key_d.escaped}\n" if count.zero?
       end
     end
 
