@@ -7,28 +7,17 @@ The primary goals of this library are simplicity of implementation
 and reliable, predictable behavior when used as intended, along
 with documentation making it reasonably clear what is intended.
 
+Secondarily, this library is optimized for fast appending to
+existing entries.
+
 ## Uses
 
-Uses for this gem seem pretty limited, but you might have a
-purpose for it that the author has not thought about.
-
-This is a formalization of a solution that was created to solve
-a specific problem. The problem was adding a feature to a
-Ruby program running on Heroku to collect data into a map of
-sets of elements that would be too large to be effectively
-handled in memory. The application didn't already have any use
-for a relational database server, and I didn't want to add one
-just for this requirement. A Redis db with sufficient capacity
-would have been expensive, and solutions such as SQLite are
-specifically not supported by Heroku so people don't mistakenly
-expect the data to be preserved. Ruby's `PStore`, `DBM` and
-`SDMB` each proved to be too unpredicatable and flakey to be a
-practical solution.
-
-Although this tool was initially developed to store transient
-data for use within a single process invocation and then
-discarded, it is also well suited for long term data storage on a
-system that retains filesystem contents.
+This library is useful in some of the same situations in which
+one might consider using the `PStore`, `DBM`, or `SMDB` classes
+provided as part of Ruby's standard library, but you either need
+something more solid and trustworthy or you need something that
+supports fast appending of elements to lists or sets within
+entries.
 
 ## Installation
 
@@ -53,13 +42,13 @@ filesystem containing the files that store the data.
 
 A database is accessed through an instance of a database class.
 
-An instance of a database class maintains no internal state
-between calls to its methods except for the database name and the
-expectation of a directory with that name existing in the
-filesystem.
+An instance of a database class assumes nothing about the state
+of the database between calls to its methods, and only expects
+that the database exists and is valid when a call is made that
+reads or writes data.
 
-Only instances of classes maintain any internal state. No global
-internal state is maintained.
+Only instances of database classes maintain any internal state.
+No global internal state is maintained.
 
 An empty directory is a valid empty database.
 
@@ -76,11 +65,14 @@ will be raised if it doesn't.
 
 The database structure is designed to effectively handle up to
 several million elements with any entry containing up to around
-50 thousand characters (elements ⨉ chars in an entry's content).
+50 thousand characters (in all of the entry's elements combined).
 
-The speed of database operations is good, but this is not a high
-performance database management system. See the code
-documentation in the classes for more details about the
+The speed of database operations is good, and it is particularly
+optimized for appending to new or existing entries. It was not
+designed or optimized to be a "high performance" database
+management system though, and it has not been benchmarked against
+other systems for specific performance comparison. See the inline
+code documentation of the classes for details about the
 performance of each kind of database operation.
 
 ## Usage
@@ -89,7 +81,8 @@ The primary kind of database provided by this gem is the one
 implemented by `CartonDB::ListMapDb`. It is a map of lists where
 each entry has a string for a key and a list of of 0 or more
 string elements as content. Other kinds of database are
-implemented on top of that and share the same storage format.
+implemented as specializations of that and share the same storage
+format.
 
 The name of the database is the path of a directory in the
 filesystem that either already exists or shall be created as
