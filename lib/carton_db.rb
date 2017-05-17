@@ -9,4 +9,8 @@ require "carton_db/simple_map_db"
 require "carton_db/set_map_db"
 
 module CartonDb
+  Error = Class.new(StandardError)
+  UnescapingError = Class.new(Error)
+  InvalidEscapeSequence = Class.new(UnescapingError)
+  IncompleteEscapeSequence = Class.new(UnescapingError)
 end

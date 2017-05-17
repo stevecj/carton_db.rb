@@ -20,4 +20,17 @@ RSpec.describe CartonDb::Escaping do
     unesc = subject.unescape(esc)
     expect( unesc ).to eq( input )
   end
+
+  it "raises an appropriate exception unescaping an invalid escape sequence" do
+    expect {
+      subject.unescape("abc\\qdef")
+    }.to raise_exception CartonDb::InvalidEscapeSequence
+  end
+
+  it "raises an appropriate exception unescaping an incomplete escape sequence" do
+    expect {
+      subject.unescape("abc\\")
+    }.to raise_exception CartonDb::IncompleteEscapeSequence
+  end
+
 end

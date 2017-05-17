@@ -44,18 +44,36 @@ module CartonDb
 
     UNESCAPING_MAP = ESCAPING_MAP.invert.freeze
 
-    def self.escape(value)
-      value.gsub(
-        /[\x00-\x1F\x7F\\]/,
-        ESCAPING_MAP
-      )
-    end
+    class << self
+      def escape(value)
+        value.gsub(
+          /[\x00-\x1F\x7F\\]/,
+          ESCAPING_MAP
+        )
+      end
 
-    def self.unescape(esc)
-      esc.gsub(
-        /\\(?:\\|x[01][0-9A-F]|x7F|[abtnvfr])/,
-        UNESCAPING_MAP
-      )
+      def unescape(esc)
+        esc.gsub( /\\(?:\\|x[01][0-9A-F]|x7F|[^x\\]|$)/ ) { |match|
+          UNESCAPING_MAP.fetch match do
+            incomplete_sequence! match if match == "\\"
+            invalid_sequence! match
+          end
+        }
+      end
+
+      private
+
+      def incomplete_sequence!(sequence)
+        message =
+          "Escaped text contains incomplete escape sequence %s" % sequence
+        raise CartonDb::IncompleteEscapeSequence, message
+      end
+
+      def invalid_sequence!(sequence)
+        message =
+          "Escaped text contains invalid escape sequence %s" % sequence
+        raise CartonDb::InvalidEscapeSequence, message
+      end
     end
 
   end
