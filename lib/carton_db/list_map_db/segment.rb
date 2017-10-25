@@ -69,6 +69,8 @@ module CartonDb
       def touch_d(key_d, optimization)
         return if optimization == :small && key_d?(key_d)
 
+        # Add a placeholder: An escaped key not followed by a tab
+        # character.
         open_append do |io|
           io << key_d.escaped << "\n"
         end
@@ -132,6 +134,8 @@ module CartonDb
       def each_entry_element_line
         return if empty?
         each_line do |line|
+          # For a placeholder line, there is no tab character, so
+          # esc_element is nil.
           esc_key, esc_element = line.strip.split("\t", 2)
           key_d = CartonDb::Datum.for_escaped(esc_key)
           element_d = CartonDb::Datum.for_escaped(
