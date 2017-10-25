@@ -7,7 +7,7 @@ The primary goals of this library are simplicity of implementation
 and reliable, predictable behavior when used as intended, along
 with documentation making it reasonably clear what is intended.
 
-Secondarily, this library is optimized for fast appending to
+Additionally, this library is optimized for fast appending to
 existing entries.
 
 ## Uses
@@ -47,8 +47,8 @@ of the database between calls to its methods, and only expects
 that the database exists and is valid when a call is made that
 reads or writes data.
 
-Only instances of database classes maintain any internal state.
-No global internal state is maintained.
+Only instances of database classes maintain any programmatic
+state. No global state is maintained.
 
 An empty directory is a valid empty database.
 
@@ -61,26 +61,26 @@ attempting to do that are unpredictable.
 Initializing a new database class instance creates its directory
 in the filesystem if it does not already exist. The parent of the
 database directory is expected to already exist, and an exception
-will be raised if it doesn't.
+will be raised otherwise.
 
 The database structure is designed to effectively handle up to
 several million elements with any entry containing up to around
 50 thousand characters (in all of the entry's elements combined).
 
 The speed of database operations is good, and it is particularly
-optimized for appending to new or existing entries. It was not
+optimized for appending to new or existing entries. This is not
 designed or optimized to be a "high performance" database
 management system though, and it has not been benchmarked against
 other systems for specific performance comparison. See the inline
 code documentation of the classes for details about the
-performance of each kind of database operation.
+performance characteristics of specific operations.
 
 ## Usage
 
 The primary kind of database provided by this gem is the one
 implemented by `CartonDB::ListMapDb`. It is a map of lists where
 each entry has a string for a key and a list of of 0 or more
-string elements as content. Other kinds of database are
+string elements as its content. Other kinds of database are
 implemented as specializations of that and share the same storage
 format.
 

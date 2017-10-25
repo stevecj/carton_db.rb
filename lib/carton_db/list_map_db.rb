@@ -9,10 +9,6 @@ require 'carton_db/list_map_db/segment_group'
 module CartonDb
 
   # A map with strings as keys and lists of strings as contents.
-  #
-  # This is suitable for storing a total number of elements as
-  # large as the low millions, with each entry containing a
-  # number of elements in the hundreds or low thousands.
   class ListMapDb
     extend Forwardable
     include Enumerable
@@ -23,7 +19,7 @@ module CartonDb
     }.freeze
 
     # Initializes an instance that interacts with the database
-    # identified by the given name, which is the full path to a
+    # identified by the given name which is the full path to a
     # directory in the filesystem.
     #
     # The directory for the database will be created if it does
@@ -32,10 +28,10 @@ module CartonDb
     # The parent directory is assumed to already exist, and an
     # exception will be raised if it does not.
     #
-    # Other instance methods assume that the directory exists but
-    # make no other assumptions about the state of the persisted
-    # data, and an empty directory is a valid representation of
-    # an empty database.
+    # Other instance methods assume that the directory exists and
+    # contains valid data but has no other assumptions about the
+    # state of the persisted data. An empty directory is a valid
+    # representation of an empty database.
     #
     # This is a very fast operation.
     #
@@ -85,8 +81,8 @@ module CartonDb
     # Returns true if an entry with the given key exists.
     #
     # Performance is similar to #[] but may be somewhat faster
-    # when a key is found since it doesn't need to ensure that
-    # it has read all of the elements for an entry.
+    # when a key is found since it does not need to read any
+    # farther before returning a result in that case.
     #
     # @param key [String] The key identifying the entry.
     def key?(key)
@@ -95,7 +91,7 @@ module CartonDb
       segment.key_d?(key_d)
     end
 
-    # Returns trus if an entry with the given key exists and its
+    # Returns true if an entry with the given key exists and its
     # content includes at least one element with the given
     # element value.
     #
@@ -279,7 +275,11 @@ module CartonDb
     end
 
     # Appends an element to the content of an entry if no
-    # element with the same value already exists in the content.
+    # element with the same value already exists in the entry's
+    # content.
+    #
+    # If the entry itself does not exist, then it is created
+    # with the given element as its only entry.
     #
     # @param key [String] The key identifying the entry.
     # @param element [String] The element to be appended to the

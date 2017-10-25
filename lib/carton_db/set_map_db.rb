@@ -6,6 +6,16 @@ require 'forwardable'
 
 module CartonDb
 
+  # A map with strings as keys and sets of strings as contents.
+  # a string or nil.
+  #
+  # Data storage is in the same form as ListMapDb, but underlying
+  # content lists are treated as sets with duplicate elements
+  # ignored.  Duplicate values are also ignored in data that is
+  # given for writing.
+  #
+  # See the documentation for CartonDb::ListMapDb for additional
+  # details.
   class SetMapDb
     extend Forwardable
 
@@ -21,8 +31,8 @@ module CartonDb
     #
     # @param key [String] The key identifying the entry.
     # @param content [Set<String>] A set or other enumerable
-    #   collection of 0 or more list element string values to be
-    #   stored.
+    #   collection of 0 or more content-element string values to
+    #   be stored.
     def []=(key, content)
       content = Set.new(content) unless content.is_a?(Set)
       list_map_db[key] = content
@@ -97,8 +107,8 @@ module CartonDb
     # performance characteristics.
     #
     # @yieldparam key [String] The key of the entry.
-    # @yeildparam array [Array<String>] The elements of the list
-    #   entry's content.
+    # @yeildparam array [Set<String>] The set of content
+    #   elements.
     def each
       list_map_db.each do |key, list|
         yield key, Set.new(list)
